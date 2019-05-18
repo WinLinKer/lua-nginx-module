@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 repeat_each(2);
@@ -57,7 +56,7 @@ __DATA__
             local reader = sock:receiveuntil("abcabd", { inclusive = true })
 
             for i = 1, 3 do
-                line, err, part = reader()
+                local line, err, part = reader()
                 if line then
                     ngx.say("read: ", line)
 
@@ -84,7 +83,7 @@ read: abcabcabd
 read: abcabd
 failed to read a line: closed [
 ]
-close: nil closed
+close: 1 nil
 }
 --- no_error_log
 [error]
@@ -129,7 +128,7 @@ close: nil closed
             local reader = sock:receiveuntil("abcabdabcabe", { inclusive = true })
 
             for i = 1, 2 do
-                line, err, part = reader()
+                local line, err, part = reader()
                 if line then
                     ngx.say("read: ", line)
 
@@ -155,7 +154,7 @@ request sent: 57
 read: ababcabdabcabe
 failed to read a line: closed [
 ]
-close: nil closed
+close: 1 nil
 }
 --- no_error_log
 [error]
@@ -201,7 +200,7 @@ close: nil closed
             local reader = sock:receiveuntil("abcabd", { inclusive = true })
 
             for i = 1, 3 do
-                line, err, part = reader()
+                local line, err, part = reader()
                 if line then
                     ngx.say("read: ", line)
 
@@ -228,7 +227,7 @@ read: abcabcabd
 read: abcabd
 failed to read a line: closed [
 ]
-close: nil closed
+close: 1 nil
 }
 --- no_error_log
 [error]
@@ -273,7 +272,7 @@ close: nil closed
             local reader = sock:receiveuntil("aa", { inclusive = nil })
 
             for i = 1, 2 do
-                line, err, part = reader()
+                local line, err, part = reader()
                 if line then
                     ngx.say("read: ", line)
 
@@ -299,7 +298,7 @@ request sent: 57
 read: abcabc
 failed to read a line: closed [d
 ]
-close: nil closed
+close: 1 nil
 }
 --- no_error_log
 [error]
@@ -344,7 +343,7 @@ close: nil closed
             local reader = sock:receiveuntil("aa", { inclusive = false })
 
             for i = 1, 2 do
-                line, err, part = reader()
+                local line, err, part = reader()
                 if line then
                     ngx.say("read: ", line)
 
@@ -370,7 +369,7 @@ request sent: 57
 read: abcabc
 failed to read a line: closed [d
 ]
-close: nil closed
+close: 1 nil
 }
 --- no_error_log
 [error]
@@ -415,7 +414,7 @@ close: nil closed
             local reader = sock:receiveuntil("aa", { inclusive = true })
 
             for i = 1, 2 do
-                line, err, part = reader()
+                local line, err, part = reader()
                 if line then
                     ngx.say("read: ", line)
 
@@ -441,7 +440,7 @@ request sent: 57
 read: abcabcaa
 failed to read a line: closed [d
 ]
-close: nil closed
+close: 1 nil
 }
 --- no_error_log
 [error]
@@ -486,7 +485,7 @@ close: nil closed
             local reader = sock:receiveuntil("aa", { inclusive = "true" })
 
             for i = 1, 2 do
-                line, err, part = reader()
+                local line, err, part = reader()
                 if line then
                     ngx.say("read: ", line)
 
@@ -553,7 +552,7 @@ bad "inclusive" option value type: string
             local reader = sock:receiveuntil("aa", { inclusive = "true" })
 
             for i = 1, 2 do
-                line, err, part = reader()
+                local line, err, part = reader()
                 if line then
                     ngx.say("read: ", line)
 
@@ -621,7 +620,7 @@ bad "inclusive" option value type: string
             local reader = sock:receiveuntil("--abc", { inclusive = true })
 
             for i = 1, 7 do
-                line, err, part = reader(4)
+                local line, err, part = reader(4)
                 if line then
                     ngx.say("read: ", line)
 
@@ -652,7 +651,7 @@ read: --abc
 failed to read a line: nil [nil]
 failed to read a line: closed [
 ]
-close: nil closed
+close: 1 nil
 }
 --- no_error_log
 [error]
@@ -698,7 +697,7 @@ close: nil closed
             local reader = sock:receiveuntil("--abc", { inclusive = true })
 
             for i = 1, 7 do
-                line, err, part = reader(4)
+                local line, err, part = reader(4)
                 if line then
                     ngx.say("read: ", line)
 
@@ -740,8 +739,7 @@ read one byte:
 
 failed to read a chunk: nil [nil]
 failed to read a byte: closed []
-close: nil closed
+close: 1 nil
 }
 --- no_error_log
 [error]
-

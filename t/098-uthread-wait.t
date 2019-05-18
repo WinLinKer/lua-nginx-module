@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 use t::StapThread;
 
@@ -24,7 +23,7 @@ __DATA__
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 return "done"
             end
@@ -73,7 +72,7 @@ done
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.say("hello in thread")
                 return "done"
@@ -121,13 +120,13 @@ done
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.say("f: hello")
                 return "done"
             end
 
-            function g()
+            local function g()
                 ngx.sleep(0.2)
                 ngx.say("g: hello")
                 return "done"
@@ -201,13 +200,13 @@ f: done
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.say("f: hello")
                 return "done"
             end
 
-            function g()
+            local function g()
                 ngx.sleep(0.2)
                 ngx.say("g: hello")
                 return "done"
@@ -229,7 +228,7 @@ f: done
 
             ngx.say("g thread created: ", coroutine.status(tg))
 
-            ok, res = ngx.thread.wait(tf)
+            local ok, res = ngx.thread.wait(tf)
             if not ok then
                 ngx.say("failed to wait f: ", res)
                 return
@@ -282,7 +281,7 @@ g: done
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 return "done", 3.14
             end
@@ -331,7 +330,7 @@ res: done 3.14
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.say("hello in thread")
                 return "done", 3.14
@@ -379,7 +378,7 @@ res: done 3.14
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 error("bad bad!")
             end
@@ -419,8 +418,8 @@ delete thread 1
 hello in thread
 thread created: zombie
 failed to wait thread: bad bad!
---- error_log
-lua user thread aborted: runtime error: [string "content_by_lua"]:4: bad bad!
+--- error_log eval
+qr/lua user thread aborted: runtime error: content_by_lua\(nginx\.conf:\d+\):4: bad bad!/
 
 
 
@@ -428,7 +427,7 @@ lua user thread aborted: runtime error: [string "content_by_lua"]:4: bad bad!
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.say("hello in thread")
                 error("bad bad!")
@@ -469,8 +468,8 @@ delete thread 1
 thread created: running
 hello in thread
 failed to wait thread: bad bad!
---- error_log
-lua user thread aborted: runtime error: [string "content_by_lua"]:5: bad bad!
+--- error_log eval
+qr/lua user thread aborted: runtime error: content_by_lua\(nginx\.conf:\d+\):5: bad bad!/
 
 
 
@@ -478,12 +477,12 @@ lua user thread aborted: runtime error: [string "content_by_lua"]:5: bad bad!
 --- config
     location /lua {
         content_by_lua '
-            function g()
+            local function g()
                 ngx.say("hello in thread")
                 return "done"
             end
 
-            function f()
+            local function f()
                 local t, err = ngx.thread.spawn(g)
                 if not t then
                     ngx.say("failed to spawn thread: ", err)
@@ -534,13 +533,13 @@ done
 --- config
     location /lua {
         content_by_lua '
-            function g()
+            local function g()
                 ngx.sleep(0.1)
                 ngx.say("hello in thread")
                 return "done"
             end
 
-            function f()
+            local function f()
                 local t, err = ngx.thread.spawn(g)
                 if not t then
                     ngx.say("failed to spawn thread: ", err)
@@ -594,12 +593,12 @@ done
             -- local out = function (...) ngx.log(ngx.ERR, ...) end
             local out = ngx.say
 
-            function f()
+            local function f()
                 out("f: hello")
                 return "f done"
             end
 
-            function g()
+            local function g()
                 out("g: hello")
                 return "g done"
             end
@@ -669,13 +668,13 @@ g status: zombie
             -- local out = function (...) ngx.log(ngx.ERR, ...) end
             local out = ngx.say
 
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 out("f: hello")
                 return "f done"
             end
 
-            function g()
+            local function g()
                 ngx.sleep(0.2)
                 out("g: hello")
                 return "g done"
@@ -746,13 +745,13 @@ g: hello
             -- local out = function (...) ngx.log(ngx.ERR, ...) end
             local out = ngx.say
 
-            function f()
+            local function f()
                 ngx.sleep(0.2)
                 out("f: hello")
                 return "f done"
             end
 
-            function g()
+            local function g()
                 ngx.sleep(0.1)
                 out("g: hello")
                 return "g done"
@@ -823,12 +822,12 @@ f: hello
             -- local out = function (...) ngx.log(ngx.ERR, ...) end
             local out = ngx.say
 
-            function f()
+            local function f()
                 out("f: hello")
                 error("f done")
             end
 
-            function g()
+            local function g()
                 out("g: hello")
                 error("g done")
             end
@@ -885,8 +884,8 @@ failed to wait thread: f done
 f status: dead
 g status: zombie
 
---- error_log
-lua user thread aborted: runtime error: [string "content_by_lua"]:7: f done
+--- error_log eval
+qr/lua user thread aborted: runtime error: content_by_lua\(nginx\.conf:\d+\):7: f done/
 
 
 
@@ -897,13 +896,13 @@ lua user thread aborted: runtime error: [string "content_by_lua"]:7: f done
             -- local out = function (...) ngx.log(ngx.ERR, ...) end
             local out = ngx.say
 
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 out("f: hello")
                 error("f done")
             end
 
-            function g()
+            local function g()
                 ngx.sleep(0.2)
                 out("g: hello")
                 error("g done")
@@ -961,8 +960,8 @@ f status: dead
 g status: running
 g: hello
 
---- error_log
-lua user thread aborted: runtime error: [string "content_by_lua"]:8: f done
+--- error_log eval
+qr/lua user thread aborted: runtime error: content_by_lua\(nginx\.conf:\d+\):8: f done/
 
 
 
@@ -970,13 +969,13 @@ lua user thread aborted: runtime error: [string "content_by_lua"]:8: f done
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.say("f: hello")
                 return "done"
             end
 
-            function g()
+            local function g()
                 ngx.sleep(0.2)
                 ngx.say("g: hello")
                 return "done"
@@ -998,7 +997,7 @@ lua user thread aborted: runtime error: [string "content_by_lua"]:8: f done
 
             ngx.say("g thread created: ", coroutine.status(tg))
 
-            ok, res = ngx.thread.wait(tf, tg)
+            local ok, res = ngx.thread.wait(tf, tg)
             if not ok then
                 ngx.say("failed to wait: ", res)
                 return
@@ -1039,13 +1038,13 @@ res: done
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.2)
                 ngx.say("f: hello")
                 return "f done"
             end
 
-            function g()
+            local function g()
                 ngx.sleep(0.1)
                 ngx.say("g: hello")
                 return "g done"
@@ -1067,7 +1066,7 @@ res: done
 
             ngx.say("g thread created: ", coroutine.status(tg))
 
-            ok, res = ngx.thread.wait(tf, tg)
+            local ok, res = ngx.thread.wait(tf, tg)
             if not ok then
                 ngx.say("failed to wait: ", res)
                 return
@@ -1110,12 +1109,12 @@ res: g done
         content_by_lua '
             local t
 
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 return "done"
             end
 
-            function g()
+            local function g()
                 t = ngx.thread.spawn(f)
             end
 
@@ -1155,7 +1154,7 @@ only the parent coroutine can wait on the thread
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 coroutine.yield()
                 return "done"
@@ -1184,8 +1183,8 @@ delete thread 1
 
 --- response_body_like: 500 Internal Server Error
 --- error_code: 500
---- error_log
-lua entry thread aborted: runtime error: [string "content_by_lua"]:11: attempt to wait on a coroutine that is not a user thread
+--- error_log eval
+qr/lua entry thread aborted: runtime error: content_by_lua\(nginx\.conf:\d+\):11: attempt to wait on a coroutine that is not a user thread/
 
 
 
@@ -1193,7 +1192,7 @@ lua entry thread aborted: runtime error: [string "content_by_lua"]:11: attempt t
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 collectgarbage()
                 error("f done")
@@ -1220,8 +1219,8 @@ delete thread 2
 --- response_body
 ok
 
---- error_log
-lua user thread aborted: runtime error: [string "content_by_lua"]:5: f done
+--- error_log eval
+qr/lua user thread aborted: runtime error: content_by_lua\(nginx\.conf:\d+\):5: f done/
 
 
 
@@ -1229,7 +1228,7 @@ lua user thread aborted: runtime error: [string "content_by_lua"]:5: f done
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 return "done"
             end
@@ -1274,7 +1273,7 @@ delete thread 1
 --- response_body
 hello in thread
 thread created: zombie
-failed to run thread: already waited
+failed to run thread: already waited or killed
 --- no_error_log
 [error]
 
@@ -1284,7 +1283,7 @@ failed to run thread: already waited
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 -- ngx.say("hello in thread")
                 return "done"
             end
@@ -1322,4 +1321,3 @@ $s;
 --- no_error_log
 [error]
 [alert]
-

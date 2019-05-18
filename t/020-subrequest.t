@@ -1,5 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
-use lib 'lib';
+
 use Test::Nginx::Socket::Lua;
 
 #master_on();
@@ -8,9 +8,10 @@ use Test::Nginx::Socket::Lua;
 #log_level('warn');
 #master_process_enabled(1);
 
+no_root_location;
 repeat_each(2);
 
-plan tests => repeat_each() * (blocks() * 3 + 21);
+plan tests => repeat_each() * (blocks() * 3 + 23);
 
 $ENV{TEST_NGINX_MEMCACHED_PORT} ||= 11211;
 
@@ -31,7 +32,7 @@ __DATA__
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_DELETE });
 
             ngx.print(res.body)
@@ -41,6 +42,8 @@ __DATA__
 GET /lua
 --- response_body
 DELETE
+--- error_log
+lua http subrequest "/other?"
 --- no_error_log
 [error]
 
@@ -59,7 +62,7 @@ DELETE
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_DELETE });
 
             ngx.print(res.body)
@@ -87,7 +90,7 @@ DELETE
 
     location /t {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_POST });
 
             ngx.print(res.body)
@@ -111,7 +114,7 @@ POST
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_HEAD });
 
             ngx.print(res.body)
@@ -120,7 +123,6 @@ POST
 --- request
 GET /lua
 --- response_body
-HEAD
 --- no_error_log
 [error]
 
@@ -139,7 +141,7 @@ HEAD
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_GET });
 
             ngx.print(res.body)
@@ -167,7 +169,7 @@ GET
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo")
+            local res = ngx.location.capture("/foo")
 
             ngx.print(res.body)
         ';
@@ -194,7 +196,7 @@ GET
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo", {})
+            local res = ngx.location.capture("/foo", {})
 
             ngx.print(res.body)
         ';
@@ -224,7 +226,7 @@ GET
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_PUT, body = "hello" });
 
             ngx.print(res.body)
@@ -253,7 +255,7 @@ hello
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_PUT, body = "hello" });
 
             ngx.print(res.body)
@@ -289,7 +291,7 @@ hello
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_PUT, body = "hello" });
 
             ngx.print(res.body)
@@ -327,7 +329,7 @@ GET
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_POST, body = "hello" });
 
             ngx.print(res.body)
@@ -360,7 +362,7 @@ hello
         content_by_lua '
             ngx.location.capture("/flush");
 
-            res = ngx.location.capture("/memc");
+            local res = ngx.location.capture("/memc");
             ngx.say("GET: " .. res.status);
 
             res = ngx.location.capture("/memc",
@@ -402,7 +404,7 @@ cached: hello
             ngx.location.capture("/flush",
                 { share_all_vars = true });
 
-            res = ngx.location.capture("/memc",
+            local res = ngx.location.capture("/memc",
                 { share_all_vars = true });
             ngx.say("GET: " .. res.status);
 
@@ -425,7 +427,7 @@ cached: hello
 
 
 
-=== TEST 14: emtpy args option table
+=== TEST 14: empty args option table
 --- config
     location /foo {
         echo $query_string;
@@ -433,7 +435,7 @@ cached: hello
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { args = {} })
             ngx.print(res.body)
         ';
@@ -454,7 +456,7 @@ GET /lua
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { args = { ["fo="] = "=>" } })
             ngx.print(res.body)
         ';
@@ -462,7 +464,7 @@ GET /lua
 --- request
 GET /lua
 --- response_body
-fo%3d=%3d%3e
+fo%3D=%3D%3E
 --- no_error_log
 [error]
 
@@ -476,7 +478,7 @@ fo%3d=%3d%3e
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { args = { ["fo="] = "=>",
                     ["="] = ":" } })
             ngx.print(res.body)
@@ -485,7 +487,7 @@ fo%3d=%3d%3e
 --- request
 GET /lua
 --- response_body_like chop
-^(?:fo%3d=%3d%3e\&%3d=%3a|%3d=%3a\&fo%3d=%3d%3e)$
+^(?:fo%3D=%3D%3E\&%3D=%3A|%3D=%3A\&fo%3D=%3D%3E)$
 --- no_error_log
 [error]
 --- no_error_log
@@ -501,7 +503,7 @@ GET /lua
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { args = { foo = 3,
                     bar = "hello" } })
             ngx.print(res.body)
@@ -524,7 +526,7 @@ GET /lua
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { args = { [57] = "hi" } })
             ngx.print(res.body)
         ';
@@ -546,7 +548,7 @@ attempt to use a non-string key in the "args" option table
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { args = { "hi" } })
             ngx.print(res.body)
         ';
@@ -568,7 +570,7 @@ attempt to use a non-string key in the "args" option table
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo?a=3",
+            local res = ngx.location.capture("/foo?a=3",
                 { args = { b = 4 } })
             ngx.print(res.body)
         ';
@@ -590,7 +592,7 @@ a=3&b=4
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo?a=3",
+            local res = ngx.location.capture("/foo?a=3",
                 { args = "b=4" })
             ngx.print(res.body)
         ';
@@ -683,7 +685,7 @@ https://github.com/chaoslawful/lua-nginx-module/issues/38
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_GET });
             ngx.say("header foo: [", res.body, "]")
         ';
@@ -709,7 +711,7 @@ https://github.com/chaoslawful/lua-nginx-module/issues/38
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { body = "abc" });
             ngx.say("header foo: [", res.body, "]")
         ';
@@ -744,8 +746,8 @@ header foo: [bar]
     }
     location /main {
         content_by_lua '
-            res1, res2 = ngx.location.capture_multi({{"/a"}, {"/b"}})
-            res3 = ngx.location.capture("/c")
+            local res1, res2 = ngx.location.capture_multi({{"/a"}, {"/b"}})
+            local res3 = ngx.location.capture("/c")
             ngx.print(res1.body, res2.body, res3.body)
         ';
     }
@@ -778,7 +780,7 @@ lua reuse free buf memory
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_POST, body = "hello" });
 
             ngx.print(res.body)
@@ -799,7 +801,7 @@ hello
 --- config
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo.html")
+            local res = ngx.location.capture("/foo.html")
 
             ngx.say(res.status)
             ngx.say(res.header["Last-Modified"])
@@ -830,7 +832,7 @@ hello, static file$
     location /lua {
         content_by_lua '
             local ctx = {}
-            res = ngx.location.capture("/sub", { ctx = ctx })
+            local res = ngx.location.capture("/sub", { ctx = ctx })
 
             ngx.say(ctx.foo);
             ngx.say(ngx.ctx.foo);
@@ -855,7 +857,7 @@ nil
     }
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/sub", { ctx = ngx.ctx })
+            local res = ngx.location.capture("/sub", { ctx = ngx.ctx })
             ngx.say(ngx.ctx.foo);
         ';
     }
@@ -883,7 +885,7 @@ bar
 
     location /t {
         content_by_lua '
-            res = ngx.location.capture("/memc",
+            local res = ngx.location.capture("/memc",
                 { method = ngx.HTTP_PUT, body = "hello 1234" });
             -- ngx.say("PUT: " .. res.status);
 
@@ -920,7 +922,7 @@ lua reuse free buf chain, but reallocate memory because
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_GET });
 
             ngx.print(res.body)
@@ -957,7 +959,7 @@ nil
         content_by_lua '
             ngx.req.read_body()
 
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_GET });
 
             ngx.print(res.body)
@@ -994,7 +996,7 @@ nil
         content_by_lua '
             ngx.req.read_body()
 
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_POST });
 
             ngx.print(res.body)
@@ -1031,7 +1033,7 @@ hello, world
         content_by_lua '
             ngx.req.read_body()
 
-            res = ngx.location.capture("/foo",
+            local res = ngx.location.capture("/foo",
                 { method = ngx.HTTP_PUT });
 
             ngx.print(res.body)
@@ -1059,7 +1061,7 @@ hello, world
     GET /t
 --- ignore_response
 --- error_log
-subrequests cycle while processing "/t"
+lua subrequests cycle while processing "/t"
 
 
 
@@ -1072,7 +1074,7 @@ subrequests cycle while processing "/t"
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_OPTIONS });
 
             ngx.print(res.body)
@@ -1097,7 +1099,7 @@ OPTIONS
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_OPTIONS, body = "hello world" });
 
             ngx.print(res.body)
@@ -1117,7 +1119,11 @@ hello world
 --- config
     location /t {
         content_by_lua '
-            local args = ngx.req.get_uri_args()
+            local args, err = ngx.req.get_uri_args()
+            if err then
+                ngx.say("err: ", err)
+            end
+
             local res = ngx.location.capture("/sub", { args = args })
             ngx.print(res.body)
         ';
@@ -1129,7 +1135,7 @@ hello world
 --- request
 GET /t?r[]=http%3A%2F%2Fajax.googleapis.com%3A80%2Fajax%2Flibs%2Fjquery%2F1.7.2%2Fjquery.min.js&r[]=http%3A%2F%2Fajax.googleapis.com%3A80%2Fajax%2Flibs%2Fdojo%2F1.7.2%2Fdojo%2Fdojo.js.uncompressed.js
 --- response_body
-r%5b%5d=http%3a%2f%2fajax.googleapis.com%3a80%2fajax%2flibs%2fjquery%2f1.7.2%2fjquery.min.js&r%5b%5d=http%3a%2f%2fajax.googleapis.com%3a80%2fajax%2flibs%2fdojo%2f1.7.2%2fdojo%2fdojo.js.uncompressed.js
+r%5B%5D=http%3A%2F%2Fajax.googleapis.com%3A80%2Fajax%2Flibs%2Fjquery%2F1.7.2%2Fjquery.min.js&r%5B%5D=http%3A%2F%2Fajax.googleapis.com%3A80%2Fajax%2Flibs%2Fdojo%2F1.7.2%2Fdojo%2Fdojo.js.uncompressed.js
 --- no_error_log
 [error]
 
@@ -1145,7 +1151,7 @@ r%5b%5d=http%3a%2f%2fajax.googleapis.com%3a80%2fajax%2flibs%2fjquery%2f1.7.2%2fj
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/sub")
+            local res = ngx.location.capture("/sub")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
         ';
@@ -1166,7 +1172,7 @@ body:
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/sub")
+            local res = ngx.location.capture("/sub")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
         ';
@@ -1190,7 +1196,7 @@ body:
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/sub")
+            local res = ngx.location.capture("/sub")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
         ';
@@ -1236,7 +1242,7 @@ F(ngx_http_finalize_request) {
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/memc")
+            local res = ngx.location.capture("/memc")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -1306,7 +1312,7 @@ upstream prematurely closed connection
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/memc")
+            local res = ngx.location.capture("/memc")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -1379,7 +1385,7 @@ upstream timed out
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -1439,7 +1445,7 @@ upstream prematurely closed connection
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -1501,7 +1507,7 @@ upstream timed out
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -1561,7 +1567,7 @@ truncated: false
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -1624,7 +1630,7 @@ upstream timed out
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -1684,7 +1690,7 @@ truncated: false
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -1750,7 +1756,7 @@ upstream timed out
             ngx.req.read_body()
 
             for i = 1, 2 do
-                res = ngx.location.capture("/other",
+                local res = ngx.location.capture("/other",
                     { method = ngx.HTTP_POST });
 
                 ngx.say(res.body)
@@ -1790,7 +1796,7 @@ hello world
             ngx.req.read_body()
 
             for i = 1, 2 do
-                res = ngx.location.capture("/other",
+                local res = ngx.location.capture("/other",
                     { method = ngx.HTTP_POST });
 
                 ngx.say(res.body)
@@ -1830,7 +1836,7 @@ hello world
             ngx.req.read_body()
 
             for i = 1, 2 do
-                res = ngx.location.capture("/other",
+                local res = ngx.location.capture("/other",
                     { method = ngx.HTTP_POST });
 
                 ngx.say(res.body)
@@ -1910,7 +1916,7 @@ a client request body is buffered to a temporary file
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -1973,7 +1979,7 @@ upstream prematurely closed connection
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -2034,7 +2040,7 @@ upstream prematurely closed connection
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -2096,7 +2102,7 @@ upstream timed out
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -2154,7 +2160,7 @@ truncated: false
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -2213,7 +2219,7 @@ truncated: false
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/proxy")
+            local res = ngx.location.capture("/proxy")
             ngx.say("status: ", res.status)
             ngx.say("body: ", res.body)
             ngx.say("truncated: ", res.truncated)
@@ -2282,7 +2288,7 @@ upstream prematurely closed connection
             }
 
             for i, method in ipairs(methods) do
-                res = ngx.location.capture("/other",
+                local res = ngx.location.capture("/other",
                     { method = method })
                 ngx.print(res.body)
             end
@@ -2318,7 +2324,7 @@ method: TRACE
 
     location /lua {
         content_by_lua '
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_DELETE });
 
             ngx.print(res.body)
@@ -2347,7 +2353,7 @@ nil
     location /lua {
         content_by_lua '
             ngx.req.read_body()
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_DELETE, always_forward_body = true });
 
             ngx.print(res.body)
@@ -2376,7 +2382,7 @@ hello world
     location /lua {
         content_by_lua '
             ngx.req.read_body()
-            res = ngx.location.capture("/other",
+            local res = ngx.location.capture("/other",
                 { method = ngx.HTTP_DELETE, always_forward_body = true });
 
             ngx.print(res.body)
@@ -2404,7 +2410,7 @@ hello world
 --- config
     location = /t {
         content_by_lua '
-            res = ngx.location.capture("/sub")
+            local res = ngx.location.capture("/sub")
             ngx.print(res.body)
         ';
     }
@@ -2464,7 +2470,6 @@ capture body filter
           end
         ";
 
-        resolver 8.8.8.8;
         proxy_http_version 1.1;
         proxy_pass $_url;
     }
@@ -2535,7 +2540,6 @@ qr/Assertion .*? failed/
           end
         ";
 
-        resolver 8.8.8.8;
         proxy_http_version 1.1;
         proxy_pass $_url;
     }
@@ -2588,3 +2592,288 @@ hello
 qr/Assertion .*? failed/
 ]
 
+
+
+=== TEST 68: fetch subrequest's builtin request headers
+--- config
+    location = /sub {
+        echo "sr: User-Agent: $http_user_agent";
+        echo "sr: Host: $http_host";
+    }
+
+    location = /t {
+        content_by_lua '
+            local res = ngx.location.capture("/sub")
+            ngx.print(res.body)
+            ngx.say("pr: User-Agent: ", ngx.var.http_user_agent)
+            ngx.say("pr: Host: ", ngx.var.http_host)
+        ';
+    }
+--- request
+    GET /t
+--- more_headers
+User-Agent: foo
+--- response_body
+sr: User-Agent: foo
+sr: Host: localhost
+pr: User-Agent: foo
+pr: Host: localhost
+
+--- no_error_log
+[error]
+
+
+
+=== TEST 69: modify subrequest's builtin request headers
+--- config
+    location = /sub {
+        rewrite_by_lua '
+            ngx.req.set_header("User-Agent", "bar")
+        ';
+        echo "sr: User-Agent: $http_user_agent";
+        echo "sr: Host: $http_host";
+    }
+
+    location = /t {
+        content_by_lua '
+            local res = ngx.location.capture("/sub")
+            ngx.print(res.body)
+            ngx.say("pr: User-Agent: ", ngx.var.http_user_agent)
+            ngx.say("pr: Host: ", ngx.var.http_host)
+        ';
+    }
+--- request
+    GET /t
+--- more_headers
+User-Agent: foo
+--- response_body
+sr: User-Agent: bar
+sr: Host: localhost
+pr: User-Agent: foo
+pr: Host: localhost
+
+--- no_error_log
+[error]
+
+
+
+=== TEST 70: modify subrequest's builtin request headers (main req is POST)
+--- config
+    location = /sub {
+        rewrite_by_lua '
+            ngx.req.set_header("User-Agent", "bar")
+        ';
+        echo "sr: User-Agent: $http_user_agent";
+        echo "sr: Host: $http_host";
+    }
+
+    location = /t {
+        content_by_lua '
+            local res = ngx.location.capture("/sub")
+            ngx.print(res.body)
+            ngx.say("pr: User-Agent: ", ngx.var.http_user_agent)
+            ngx.say("pr: Host: ", ngx.var.http_host)
+        ';
+    }
+--- request
+POST /t
+hello world
+--- more_headers
+User-Agent: foo
+--- response_body
+sr: User-Agent: bar
+sr: Host: localhost
+pr: User-Agent: foo
+pr: Host: localhost
+
+--- no_error_log
+[error]
+
+
+
+=== TEST 71: duplicate request headers (main req is POST)
+--- config
+    location = /sub {
+        echo "sr: Cookie: $http_cookie";
+    }
+
+    location = /t {
+        content_by_lua '
+            local res = ngx.location.capture("/sub")
+            ngx.print(res.body)
+            ngx.say("pr: Cookie: ", ngx.var.http_cookie)
+        ';
+    }
+--- request
+POST /t
+hello world
+--- more_headers
+Cookie: foo
+Cookie: bar
+--- response_body
+sr: Cookie: foo; bar
+pr: Cookie: foo; bar
+
+--- no_error_log
+[error]
+
+
+
+=== TEST 72: duplicate request headers (main req is GET)
+--- config
+    location = /sub {
+        echo "sr: Cookie: $http_cookie";
+    }
+
+    location = /t {
+        content_by_lua '
+            local res = ngx.location.capture("/sub")
+            ngx.print(res.body)
+            ngx.say("pr: Cookie: ", ngx.var.http_cookie)
+        ';
+    }
+--- request
+GET /t
+--- more_headers
+Cookie: foo
+Cookie: bar
+--- response_body
+sr: Cookie: foo; bar
+pr: Cookie: foo; bar
+
+--- no_error_log
+[error]
+
+
+
+=== TEST 73: HEAD subrequest (github #347)
+--- config
+    location /lua {
+        content_by_lua '
+            local res = ngx.location.capture("/index.html",
+                { method = ngx.HTTP_HEAD });
+            ngx.say("content-length: ", res.header["Content-Length"])
+            ngx.say("body: [", res.body, "]")
+        ';
+    }
+--- request
+GET /lua
+--- response_body_like chop
+^content-length: \d+
+body: \[\]
+$
+--- no_error_log
+[error]
+
+
+
+=== TEST 74: image_filter + ngx.location.capture
+ngx_http_image_filter_module's header filter intercepts
+the header filter chain so the r->header_sent flag won't
+get set right after the header filter chain is first invoked.
+
+--- config
+
+location = /back {
+    empty_gif;
+}
+
+location = /t {
+    image_filter rotate 90;
+
+    content_by_lua '
+        local res = ngx.location.capture("/back")
+        for k, v in pairs(res.header) do
+            ngx.header[k] = v
+        end
+        ngx.status = res.status
+        ngx.print(res.body)
+    ';
+}
+
+--- request
+GET /t
+--- response_body_like: .
+--- stap
+F(ngx_http_image_header_filter) {
+    println("image header filter")
+}
+--- stap_out
+image header filter
+
+--- no_error_log
+[error]
+
+
+
+=== TEST 75: WebDAV + MOVE
+--- config
+    location = /t {
+        content_by_lua_block {
+            local file1 = "/file1.txt"
+            local file2 = "/file2.txt"
+            ngx.req.set_header( "Destination", file2 )
+            local res = ngx.location.capture(
+                file1, { method = ngx.HTTP_MOVE }
+            )
+
+            ngx.say(
+                "MOVE ", file1, " -> ", file2,
+                ", response status: ", res.status
+            )
+        }
+    }
+
+    location / {
+        dav_methods MOVE;
+    }
+
+--- user_files
+>>> file1.txt
+hello, world!
+
+--- request
+GET /t
+
+--- response_body
+MOVE /file1.txt -> /file2.txt, response status: 204
+
+--- no_error_log
+[error]
+--- error_code: 200
+
+
+
+=== TEST 76: WebDAV + DELETE
+--- config
+    location = /t {
+        content_by_lua_block {
+            local file = "/file.txt"
+            local res = ngx.location.capture(
+                file, { method = ngx.HTTP_DELETE }
+            )
+
+            ngx.say(
+                "DELETE ", file,
+                ", response status: ", res.status
+            )
+        }
+    }
+
+    location / {
+        dav_methods DELETE;
+    }
+
+--- user_files
+>>> file.txt
+hello, world!
+
+--- request
+GET /t
+
+--- response_body
+DELETE /file.txt, response status: 204
+
+--- no_error_log
+[error]
+--- error_code: 200

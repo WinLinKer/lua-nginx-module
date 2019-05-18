@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 repeat_each(2);
@@ -27,7 +26,7 @@ __DATA__
 --- request
 GET /read
 --- response_body
-%20%3a
+%20%3A
 a b
 
 
@@ -172,4 +171,3 @@ ok
 foo = a b
 --- no_error_log
 [error]
-

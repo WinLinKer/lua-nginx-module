@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 repeat_each(2);
@@ -98,7 +97,7 @@ barbar\r
 0\r
 \r
 ]
-close: nil closed
+close: 1 nil
 }
 --- no_error_log
 [error]
@@ -432,4 +431,3 @@ failed to set keepalive: unread data in buffer
 }
 --- no_error_log
 [error]
-

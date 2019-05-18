@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 use t::StapThread;
 
@@ -26,7 +25,7 @@ __DATA__
     location /lua {
         client_body_timeout 12000ms;
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.redirect(301)
             end
@@ -50,8 +49,6 @@ __DATA__
     }
 --- request
 POST /lua
---- more_headers
-Content-Length: 1024
 --- stap2 eval: $::StapScript
 --- stap eval
 <<'_EOC_' . $::GCScript;
@@ -117,7 +114,7 @@ attempt to abort with pending subrequests
 --- config
     location /lua {
         content_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.redirect(301)
             end
@@ -179,9 +176,9 @@ add timer 100
 add timer 1000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua sleep cleanup
 delete timer 1000
-delete thread 2
 delete thread 1
 free request
 
@@ -197,7 +194,7 @@ free request
     location /lua {
         client_body_timeout 12000ms;
         content_by_lua '
-            function f()
+            local function f()
                 ngx.location.capture_multi{
                     {"/echo"},
                     {"/sleep"}
@@ -280,4 +277,3 @@ attempt to abort with pending subrequests
 --- no_error_log
 [alert]
 [warn]
-

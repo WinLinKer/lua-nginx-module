@@ -30,11 +30,6 @@ static void ngx_http_lua_set_by_lua_env(lua_State *L, ngx_http_request_t *r,
     size_t nargs, ngx_http_variable_value_t *args);
 
 
-/* chars whose addresses are used as keys in Lua VM regsitry */
-static char ngx_http_lua_setby_nargs_key;
-static char ngx_http_lua_setby_args_key;
-
-
 ngx_int_t
 ngx_http_lua_set_by_chunk(lua_State *L, ngx_http_request_t *r, ngx_str_t *val,
     ngx_http_variable_value_t *args, size_t nargs, ngx_str_t *script)
@@ -86,7 +81,7 @@ ngx_http_lua_set_by_chunk(lua_State *L, ngx_http_request_t *r, ngx_str_t *val,
 #endif
 
         if (rc != 0) {
-            /*  error occured when running loaded code */
+            /*  error occurred when running loaded code */
             err_msg = (u_char *) lua_tolstring(L, -1, &len);
 
             if (err_msg == NULL) {
@@ -132,25 +127,24 @@ ngx_http_lua_set_by_chunk(lua_State *L, ngx_http_request_t *r, ngx_str_t *val,
 
 
 int
-ngx_http_lua_setby_param_get(lua_State *L)
+ngx_http_lua_setby_param_get(lua_State *L, ngx_http_request_t *r)
 {
     int         idx;
     int         n;
 
     ngx_http_variable_value_t       *v;
+    ngx_http_lua_main_conf_t        *lmcf;
 
     idx = luaL_checkint(L, 2);
     idx--;
 
-    /*  get number of args from globals */
-    lua_pushlightuserdata(L, &ngx_http_lua_setby_nargs_key);
-    lua_rawget(L, LUA_GLOBALSINDEX);
-    n = (int) lua_tointeger(L, -1);
+    lmcf = ngx_http_get_module_main_conf(r, ngx_http_lua_module);
 
-    /*  get args from globals */
-    lua_pushlightuserdata(L, &ngx_http_lua_setby_args_key);
-    lua_rawget(L, LUA_GLOBALSINDEX);
-    v = lua_touserdata(L, -1);
+    /*  get number of args from lmcf */
+    n = lmcf->setby_nargs;
+
+    /*  get args from lmcf */
+    v = lmcf->setby_args;
 
     if (idx < 0 || idx > n - 1) {
         lua_pushnil(L);
@@ -178,17 +172,16 @@ static void
 ngx_http_lua_set_by_lua_env(lua_State *L, ngx_http_request_t *r, size_t nargs,
     ngx_http_variable_value_t *args)
 {
-    /*  set nginx request pointer to current lua thread's globals table */
+    ngx_http_lua_main_conf_t        *lmcf;
+
     ngx_http_lua_set_req(L, r);
 
-    lua_pushlightuserdata(L, &ngx_http_lua_setby_nargs_key);
-    lua_pushinteger(L, nargs);
-    lua_rawset(L, LUA_GLOBALSINDEX);
+    lmcf = ngx_http_get_module_main_conf(r, ngx_http_lua_module);
 
-    lua_pushlightuserdata(L, &ngx_http_lua_setby_args_key);
-    lua_pushlightuserdata(L, args);
-    lua_rawset(L, LUA_GLOBALSINDEX);
+    lmcf->setby_nargs = nargs;
+    lmcf->setby_args = args;
 
+#ifndef OPENRESTY_LUAJIT
     /**
      * we want to create empty environment for current script
      *
@@ -202,17 +195,18 @@ ngx_http_lua_set_by_lua_env(lua_State *L, ngx_http_request_t *r, size_t nargs,
      * all variables created in the script-env will be thrown away at the end
      * of the script run.
      * */
-    ngx_http_lua_create_new_global_table(L, 0 /* narr */, 1 /* nrec */);
+    ngx_http_lua_create_new_globals_table(L, 0 /* narr */, 1 /* nrec */);
 
     /*  {{{ make new env inheriting main thread's globals table */
     /* the metatable for the new env */
     lua_createtable(L, 0 /* narr */, 1 /* nrec */);
-    lua_pushvalue(L, LUA_GLOBALSINDEX);
+    ngx_http_lua_get_globals_table(L);
     lua_setfield(L, -2, "__index");
     lua_setmetatable(L, -2);    /*  setmetatable(newt, {__index = _G}) */
     /*  }}} */
 
     lua_setfenv(L, -2);    /*  set new running env for the code closure */
+#endif
 }
 
 /* vi:set ft=c ts=4 sw=4 et fdm=marker: */

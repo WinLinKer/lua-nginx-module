@@ -1,5 +1,4 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 worker_connections(1014);
@@ -23,11 +22,11 @@ __DATA__
 
 === TEST 1: pcall works
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
-                function f(a, b)
+                local function f(a, b)
                     if a == 0 and b == 0 then
                         error("zero error")
                     end
@@ -46,11 +45,12 @@ __DATA__
         }
 --- request
 GET /test
---- response_body
-res len: 2
-res: false[string "content_by_lua"]:4: zero error
+--- response_body eval
+qr/^res len: 2
+res: falsecontent_by_lua\(nginx\.conf:\d+\):4: zero error
 res len: 4
 res: true23hellotrue
+$/s
 --- no_error_log
 [error]
 
@@ -58,11 +58,11 @@ res: true23hellotrue
 
 === TEST 2: xpcall works
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
-                function f(a, b)
+                local function f(a, b)
                     if a == 0 and b == 0 then
                         error("zero error")
                     end
@@ -70,15 +70,15 @@ res: true23hellotrue
                     return 23, "hello", true
                 end
 
-                function g()
+                local function g()
                     return f(0, 0)
                 end
 
-                function h()
+                local function h()
                     return f(0)
                 end
 
-                function err(...)
+                local function err(...)
                     ngx.say("error handler called: ", ...)
                     return "this is the new err"
                 end
@@ -94,12 +94,13 @@ res: true23hellotrue
         }
 --- request
 GET /test
---- response_body
-error handler called: [string "content_by_lua"]:4: zero error
+--- response_body eval
+qr/^error handler called: content_by_lua\(nginx\.conf:\d+\):4: zero error
 res len: 2
 res: falsethis is the new err
 res len: 4
 res: true23hellotrue
+$/
+
 --- no_error_log
 [error]
-

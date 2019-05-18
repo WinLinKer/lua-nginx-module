@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 use t::StapThread;
 
@@ -25,7 +24,7 @@ __DATA__
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.exit(0)
             end
@@ -36,7 +35,6 @@ __DATA__
             ngx.sleep(1)
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -76,8 +74,6 @@ spawn user thread 2 in 1
 terminate 2: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 
 --- response_body
 before
@@ -91,7 +87,7 @@ hello in thread
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.1)
                 ngx.exit(0)
@@ -103,7 +99,6 @@ hello in thread
             ngx.sleep(1)
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -157,12 +152,10 @@ add timer 100
 add timer 1000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua sleep cleanup
 delete timer 1000
-delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- response_body
@@ -179,13 +172,13 @@ after
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.say("f")
                 ngx.exit(0)
             end
 
-            function g()
+            local function g()
                 ngx.sleep(1)
                 ngx.say("g")
             end
@@ -194,7 +187,6 @@ after
             ngx.thread.spawn(g)
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -252,12 +244,10 @@ terminate 1: ok
 delete thread 1
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua sleep cleanup
 delete timer 1000
-delete thread 2
 delete thread 3
-terminate 4: ok
-delete thread 4
 free request
 
 --- response_body
@@ -272,7 +262,7 @@ f
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.say("exiting the user thread")
                 ngx.exit(0)
@@ -282,7 +272,6 @@ f
             ngx.thread.spawn(f)
             ngx.say("after")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -295,8 +284,6 @@ terminate 1: ok
 delete thread 1
 terminate 2: ok
 delete thread 2
-terminate 3: ok
-delete thread 3
 
 --- wait: 0.1
 --- response_body
@@ -311,10 +298,10 @@ exiting the user thread
 === TEST 5: exit in user thread (entry thread is still pending on the DNS resolver for ngx.socket.tcp)
 --- config
     location /lua {
-        resolver agentzh.org;
+        resolver 127.0.0.2:12345;
         resolver_timeout 12s;
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.001)
                 ngx.exit(0)
@@ -324,14 +311,13 @@ exiting the user thread
             ngx.thread.spawn(f)
             ngx.say("after")
             local sock = ngx.socket.tcp()
-            local ok, err = sock:connect("agentzh.org", 12345)
+            local ok, err = sock:connect("127.0.0.2", 12345)
             if not ok then
                 ngx.say("failed to connect: ", err)
                 return
             end
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -399,12 +385,10 @@ resolving agentzh.org
 add timer 12000
 expire timer 1
 terminate 2: ok
+delete thread 2
 lua tcp resolve cleanup
 delete timer 12000
-delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- response_body
@@ -419,11 +403,11 @@ after
 === TEST 6: exit in user thread (entry thread is still pending on the DNS resolver for ngx.socket.udp)
 --- config
     location /lua {
-        resolver agentzh.org;
+        resolver 127.0.0.2:12345;
         #resolver 127.0.0.1;
         resolver_timeout 12s;
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.001)
                 ngx.exit(0)
@@ -440,7 +424,6 @@ after
             end
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -508,12 +491,10 @@ resolving agentzh.org
 add timer 12000
 expire timer 1
 terminate 2: ok
+delete thread 2
 lua udp resolve cleanup
 delete timer 12000
-delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- response_body
@@ -529,7 +510,7 @@ after
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.1)
                 ngx.exit(0)
@@ -540,14 +521,13 @@ after
             ngx.say("after")
             local sock = ngx.socket.tcp()
             sock:settimeout(12000)
-            local ok, err = sock:connect("106.187.41.147", 12345)
+            local ok, err = sock:connect("127.0.0.2", 12345)
             if not ok then
                 ngx.say("failed to connect: ", err)
                 return
             end
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -589,7 +569,7 @@ M(timer-expire) {
     }
 }
 
-F(ngx_http_lua_tcp_socket_cleanup) {
+F(ngx_http_lua_coctx_cleanup) {
     println("lua tcp socket cleanup")
 }
 _EOC_
@@ -601,12 +581,10 @@ add timer 100
 add timer 12000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua tcp socket cleanup
 delete timer 12000
-delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- response_body
@@ -622,7 +600,7 @@ after
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.1)
                 ngx.exit(0)
@@ -655,7 +633,6 @@ after
 
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -692,7 +669,7 @@ M(timer-expire) {
     }
 }
 
-F(ngx_http_lua_tcp_socket_cleanup) {
+F(ngx_http_lua_coctx_cleanup) {
     println("lua tcp socket cleanup")
 }
 _EOC_
@@ -704,12 +681,10 @@ add timer 100
 add timer 12000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua tcp socket cleanup
 delete timer 12000
-delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- response_body
@@ -725,7 +700,7 @@ after
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.1)
                 ngx.exit(0)
@@ -764,7 +739,6 @@ after
 
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -801,7 +775,7 @@ M(timer-expire) {
     }
 }
 
-F(ngx_http_lua_tcp_socket_cleanup) {
+F(ngx_http_lua_coctx_cleanup) {
     println("lua tcp socket cleanup")
 }
 _EOC_
@@ -813,12 +787,10 @@ add timer 100
 add timer 12000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua tcp socket cleanup
 delete timer 12000
-delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- response_body
@@ -834,7 +806,7 @@ after
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.1)
                 ngx.exit(0)
@@ -861,7 +833,6 @@ after
 
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -910,12 +881,10 @@ add timer 100
 add timer 12000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua udp socket cleanup
 delete timer 12000
-delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- wait: 0.1
@@ -932,7 +901,7 @@ after
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.1)
                 ngx.exit(0)
@@ -953,7 +922,6 @@ after
 
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 POST /lua
@@ -994,7 +962,7 @@ M(timer-expire) {
     }
 }
 
-F(ngx_http_lua_tcp_socket_cleanup) {
+F(ngx_http_lua_coctx_cleanup) {
     println("lua tcp socket cleanup")
 }
 _EOC_
@@ -1006,12 +974,10 @@ add timer 100
 add timer 12000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua tcp socket cleanup
 delete timer 12000
-delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- wait: 0.1
@@ -1029,7 +995,7 @@ after
     location /lua {
         client_body_timeout 12000ms;
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.1)
                 ngx.exit(0)
@@ -1043,7 +1009,6 @@ after
 
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 --- request
 POST /lua
@@ -1094,12 +1059,10 @@ add timer 100
 add timer 12000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua req body cleanup
 delete timer 12000
-delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- wait: 0.1
@@ -1117,7 +1080,7 @@ after
     location /lua {
         client_body_timeout 12000ms;
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 ngx.sleep(0.1)
                 ngx.exit(0)
@@ -1131,7 +1094,6 @@ after
 
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 
     location = /sleep {
@@ -1139,8 +1101,6 @@ after
     }
 --- request
 POST /lua
---- more_headers
-Content-Length: 1024
 --- stap2 eval: $::StapScript
 --- stap eval
 <<'_EOC_' . $::GCScript;
@@ -1186,8 +1146,6 @@ expire timer 200
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- wait: 0.1
@@ -1206,7 +1164,7 @@ attempt to abort with pending subrequests
     location /lua {
         client_body_timeout 12000ms;
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.exit(0)
             end
@@ -1216,7 +1174,6 @@ attempt to abort with pending subrequests
             ngx.location.capture("/sleep")
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 
     location = /sleep {
@@ -1224,8 +1181,6 @@ attempt to abort with pending subrequests
     }
 --- request
 POST /lua
---- more_headers
-Content-Length: 1024
 --- stap2 eval: $::StapScript
 --- stap eval
 <<'_EOC_' . $::GCScript;
@@ -1277,8 +1232,6 @@ post subreq /sleep
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- wait: 0.1
@@ -1294,7 +1247,7 @@ attempt to abort with pending subrequests
     location /lua {
         client_body_timeout 12000ms;
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.exit(0)
             end
@@ -1307,7 +1260,6 @@ attempt to abort with pending subrequests
             }
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 
     location = /echo {
@@ -1319,8 +1271,6 @@ attempt to abort with pending subrequests
     }
 --- request
 POST /lua
---- more_headers
-Content-Length: 1024
 --- stap2 eval: $::StapScript
 --- stap eval
 <<'_EOC_' . $::GCScript;
@@ -1372,8 +1322,6 @@ post subreq /sleep
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- wait: 0.1
@@ -1381,4 +1329,3 @@ free request
 end
 --- error_log
 attempt to abort with pending subrequests
-

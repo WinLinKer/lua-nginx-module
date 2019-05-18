@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 use t::StapThread;
 
@@ -24,7 +23,7 @@ __DATA__
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.exec("/foo")
             end
 
@@ -60,7 +59,7 @@ i am foo
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.exec("/foo")
             end
@@ -96,7 +95,7 @@ i am foo
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.exec("/foo")
             end
@@ -162,9 +161,9 @@ add timer 100
 add timer 1000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua sleep cleanup
 delete timer 1000
-delete thread 2
 delete thread 1
 free request
 
@@ -179,12 +178,12 @@ hello foo
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.exec("/foo")
             end
 
-            function g()
+            local function g()
                 ngx.sleep(1)
             end
 
@@ -253,9 +252,9 @@ terminate 1: ok
 delete thread 1
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua sleep cleanup
 delete timer 1000
-delete thread 2
 delete thread 3
 free request
 
@@ -271,7 +270,7 @@ hello foo
     location /lua {
         client_body_timeout 12000ms;
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.exec("/foo")
             end
@@ -281,7 +280,6 @@ hello foo
             ngx.location.capture("/sleep")
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 
     location = /sleep {
@@ -293,8 +291,6 @@ hello foo
     }
 --- request
 POST /lua
---- more_headers
-Content-Length: 1024
 --- stap2 eval: $::StapScript
 --- stap eval
 <<'_EOC_' . $::GCScript;
@@ -340,8 +336,6 @@ expire timer 200
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- wait: 0.1
@@ -349,4 +343,3 @@ free request
 end
 --- error_log
 attempt to abort with pending subrequests
-

@@ -1,5 +1,4 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 #worker_connections(1014);
@@ -8,7 +7,7 @@ use Test::Nginx::Socket::Lua;
 
 repeat_each(2);
 
-plan tests => repeat_each() * (blocks() * 2 + 4);
+plan tests => repeat_each() * (blocks() * 2 + 7);
 
 #no_diff();
 #no_long_string();
@@ -155,14 +154,15 @@ invalid referer: 1
 
 
 
-=== TEST 8: $proxy_host & $proxy_port
+=== TEST 8: $proxy_host & $proxy_port & $proxy_add_x_forwarded_for
 --- config
     location = /t {
         proxy_pass http://127.0.0.1:$server_port/back;
-        header_filter_by_lua '
+        header_filter_by_lua_block {
             ngx.header["Proxy-Host"] = ngx.var.proxy_host
             ngx.header["Proxy-Port"] = ngx.var.proxy_port
-        ';
+            ngx.header["Proxy-Add-X-Forwarded-For"] = ngx.var.proxy_add_x_forwarded_for
+        }
     }
 
     location = /back {
@@ -173,8 +173,58 @@ GET /t
 --- raw_response_headers_like
 Proxy-Host: 127.0.0.1\:\d+\r
 Proxy-Port: \d+\r
+Proxy-Add-X-Forwarded-For: 127.0.0.1\r
 --- response_body
 hello
 --- no_error_log
 [error]
 
+
+
+=== TEST 9: get a bad variable name
+--- config
+    location = /test {
+        set $true 32;
+        content_by_lua '
+            ngx.say("value: ", ngx.var[true])
+        ';
+    }
+--- request
+GET /test
+--- response_body_like: 500 Internal Server Error
+--- error_log
+bad variable name
+--- error_code: 500
+
+
+
+=== TEST 10: set a bad variable name
+--- config
+    location = /test {
+        set $true 32;
+        content_by_lua '
+            ngx.var[true] = 56
+        ';
+    }
+--- request
+GET /test
+--- response_body_like: 500 Internal Server Error
+--- error_log
+bad variable name
+--- error_code: 500
+
+
+
+=== TEST 11: set a variable that is not changeable
+--- config
+    location = /test {
+        content_by_lua '
+            ngx.var.query_string = 56
+        ';
+    }
+--- request
+GET /test?hello
+--- response_body_like: 500 Internal Server Error
+--- error_log
+variable "query_string" not changeable
+--- error_code: 500

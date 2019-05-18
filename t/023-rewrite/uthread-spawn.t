@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 use t::StapThread;
 
@@ -24,7 +23,7 @@ __DATA__
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
             end
 
@@ -32,7 +31,6 @@ __DATA__
             ngx.thread.spawn(f)
             ngx.say("after")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -56,8 +54,6 @@ terminate 2: ok
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 
 --- response_body
 before
@@ -72,11 +68,11 @@ after
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("in thread 1")
             end
 
-            function g()
+            local function g()
                 ngx.say("in thread 2")
             end
 
@@ -88,7 +84,6 @@ after
             ngx.thread.spawn(g)
             ngx.say("after 2")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -105,8 +100,6 @@ terminate 1: ok
 delete thread 2
 delete thread 3
 delete thread 1
-terminate 4: ok
-delete thread 4
 
 --- response_body
 before 1
@@ -124,7 +117,7 @@ after 2
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("before sleep")
                 ngx.sleep(0.1)
                 ngx.say("after sleep")
@@ -134,7 +127,6 @@ after 2
             ngx.thread.spawn(f)
             ngx.say("after thread create")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -147,8 +139,6 @@ terminate 1: ok
 delete thread 1
 terminate 2: ok
 delete thread 2
-terminate 3: ok
-delete thread 3
 
 --- response_body
 before thread create
@@ -164,13 +154,13 @@ after sleep
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("1: before sleep")
                 ngx.sleep(0.2)
                 ngx.say("1: after sleep")
             end
 
-            function g()
+            local function g()
                 ngx.say("2: before sleep")
                 ngx.sleep(0.1)
                 ngx.say("2: after sleep")
@@ -184,7 +174,6 @@ after sleep
             ngx.thread.spawn(g)
             ngx.say("2: after thread create")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -201,8 +190,6 @@ terminate 3: ok
 delete thread 3
 terminate 2: ok
 delete thread 2
-terminate 4: ok
-delete thread 4
 
 --- wait: 0.1
 --- response_body
@@ -223,14 +210,13 @@ delete thread 4
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.blah()
             end
 
             ngx.thread.spawn(f)
             ngx.say("after")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -243,13 +229,11 @@ terminate 2: fail
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 
 --- response_body
 after
---- error_log
-lua user thread aborted: runtime error: [string "rewrite_by_lua"]:3: attempt to call field 'blah' (a nil value)
+--- error_log eval
+qr/lua user thread aborted: runtime error: rewrite_by_lua\(nginx\.conf:\d+\):3: attempt to call field 'blah' \(a nil value\)/
 
 
 
@@ -257,9 +241,9 @@ lua user thread aborted: runtime error: [string "rewrite_by_lua"]:3: attempt to 
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("before capture")
-                res = ngx.location.capture("/proxy")
+                local res = ngx.location.capture("/proxy")
                 ngx.say("after capture: ", res.body)
             end
 
@@ -267,7 +251,6 @@ lua user thread aborted: runtime error: [string "rewrite_by_lua"]:3: attempt to 
             ngx.thread.spawn(f)
             ngx.say("after thread create")
         ';
-        content_by_lua return;
     }
 
     location /proxy {
@@ -289,8 +272,6 @@ terminate 1: ok
 delete thread 1
 terminate 2: ok
 delete thread 2
-terminate 3: ok
-delete thread 3
 
 --- response_body
 before thread create
@@ -306,7 +287,7 @@ after capture: hello world
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("before capture")
                 local res = ngx.location.capture("/proxy?foo")
                 ngx.say("after capture: ", res.body)
@@ -318,7 +299,6 @@ after capture: hello world
             local res = ngx.location.capture("/proxy?bar")
             ngx.say("capture: ", res.body)
         ';
-        content_by_lua return;
     }
 
     location /proxy {
@@ -344,8 +324,6 @@ terminate 1: ok
 delete thread 1
 terminate 2: ok
 delete thread 2
-terminate 3: ok
-delete thread 3
 
 --- response_body
 before thread create
@@ -362,7 +340,7 @@ after capture: hello foo
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("before capture")
                 local res = ngx.location.capture("/proxy?foo")
                 ngx.say("after capture: ", res.body)
@@ -374,7 +352,6 @@ after capture: hello foo
             local res = ngx.location.capture("/proxy?bar")
             ngx.say("capture: ", res.body)
         ';
-        content_by_lua return;
     }
 
     location /proxy {
@@ -401,8 +378,6 @@ terminate 2: ok
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 
 --- response_body
 before thread create
@@ -419,13 +394,13 @@ capture: hello bar
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("f: before capture")
                 local res = ngx.location.capture("/proxy?foo")
                 ngx.say("f: after capture: ", res.body)
             end
 
-            function g()
+            local function g()
                 ngx.say("g: before capture")
                 local res = ngx.location.capture("/proxy?bah")
                 ngx.say("g: after capture: ", res.body)
@@ -442,7 +417,6 @@ capture: hello bar
             local res = ngx.location.capture("/proxy?bar")
             ngx.say("capture: ", res.body)
         ';
-        content_by_lua return;
     }
 
     location /proxy {
@@ -478,8 +452,6 @@ delete thread 2
 delete thread 1
 terminate 3: ok
 delete thread 3
-terminate 4: ok
-delete thread 4
 
 --- response_body
 before thread 1 create
@@ -500,7 +472,8 @@ g: after capture: hello bah
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local g
+            local function f()
                 ngx.say("before g")
                 ngx.thread.spawn(g)
                 ngx.say("after g")
@@ -514,7 +487,6 @@ g: after capture: hello bah
             ngx.thread.spawn(f)
             ngx.say("after f")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -531,8 +503,6 @@ delete thread 1
 terminate 2: ok
 delete thread 3
 delete thread 2
-terminate 4: ok
-delete thread 4
 
 --- response_body
 before f
@@ -549,7 +519,8 @@ after g
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local g
+            local function f()
                 ngx.say("before g")
                 ngx.thread.spawn(g)
                 ngx.say("after g")
@@ -564,7 +535,6 @@ after g
             ngx.thread.spawn(f)
             ngx.say("after f")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -581,8 +551,6 @@ terminate 2: ok
 delete thread 2
 terminate 3: ok
 delete thread 3
-terminate 4: ok
-delete thread 4
 
 --- response_body
 before f
@@ -600,7 +568,7 @@ hello in g()
     location /lua {
         rewrite_by_lua '
             local co
-            function f()
+            local function f()
                 co = coroutine.running()
                 ngx.sleep(0.1)
             end
@@ -608,7 +576,6 @@ hello in g()
             ngx.thread.spawn(f)
             ngx.say("status: ", coroutine.status(co))
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -621,8 +588,6 @@ terminate 1: ok
 delete thread 1
 terminate 2: ok
 delete thread 2
-terminate 3: ok
-delete thread 3
 
 --- response_body
 status: running
@@ -636,14 +601,13 @@ status: running
     location /lua {
         rewrite_by_lua '
             local co
-            function f()
+            local function f()
                 co = coroutine.running()
             end
 
             ngx.thread.spawn(f)
             ngx.say("status: ", coroutine.status(co))
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -656,8 +620,6 @@ terminate 2: ok
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 
 --- response_body
 status: zombie
@@ -671,7 +633,8 @@ status: zombie
     location /lua {
         rewrite_by_lua '
             local co
-            function f()
+            local g
+            local function f()
                 co = coroutine.running()
                 local co2 = coroutine.create(g)
                 coroutine.resume(co2)
@@ -684,7 +647,6 @@ status: zombie
             ngx.thread.spawn(f)
             ngx.say("status: ", coroutine.status(co))
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -699,8 +661,6 @@ delete thread 1
 terminate 3: ok
 terminate 2: ok
 delete thread 2
-terminate 4: ok
-delete thread 4
 
 --- response_body
 status: normal
@@ -713,7 +673,8 @@ status: normal
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local g
+            local function f()
                 ngx.say("before g")
                 ngx.thread.spawn(g)
                 ngx.say("after g")
@@ -728,7 +689,6 @@ status: normal
             coroutine.resume(co)
             ngx.say("after f")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -743,8 +703,6 @@ terminate 2: ok
 delete thread 3
 terminate 1: ok
 delete thread 1
-terminate 4: ok
-delete thread 4
 
 --- response_body
 before f
@@ -763,7 +721,7 @@ after f
         rewrite_by_lua '
             local yield = coroutine.yield
 
-            function f()
+            local function f()
                 local self = coroutine.running()
                 ngx.say("f 1")
                 yield(self)
@@ -783,7 +741,6 @@ after f
             yield(self)
             ngx.say("4")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -796,8 +753,6 @@ terminate 2: ok
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 
 --- response_body
 0
@@ -819,7 +774,7 @@ f 3
         rewrite_by_lua '
             local yield = coroutine.yield
 
-            function f()
+            local function f()
                 local self = coroutine.running()
                 ngx.say("f 1")
                 yield(self)
@@ -828,7 +783,7 @@ f 3
                 ngx.say("f 3")
             end
 
-            function g()
+            local function g()
                 local self = coroutine.running()
                 ngx.say("g 1")
                 yield(self)
@@ -841,7 +796,6 @@ f 3
             ngx.thread.spawn(g)
             ngx.say("done")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -858,8 +812,6 @@ terminate 2: ok
 delete thread 2
 terminate 3: ok
 delete thread 3
-terminate 4: ok
-delete thread 4
 
 --- response_body
 f 1
@@ -878,7 +830,7 @@ g 3
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello in thread")
                 coroutine.yield(coroutine.running)
                 ngx.flush(true)
@@ -889,7 +841,6 @@ g 3
             ngx.say("after")
             ngx.flush(true)
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -902,8 +853,6 @@ terminate 1: ok
 delete thread 1
 terminate 2: ok
 delete thread 2
-terminate 3: ok
-delete thread 3
 
 --- response_body
 before
@@ -918,12 +867,12 @@ after
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.say("hello from f")
                 ngx.flush(true)
             end
 
-            function g()
+            local function g()
                 ngx.say("hello from g")
                 ngx.flush(true)
             end
@@ -931,7 +880,6 @@ after
             ngx.thread.spawn(f)
             ngx.thread.spawn(g)
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -956,9 +904,7 @@ terminate 3: ok
 terminate 1: ok
 delete thread 2
 delete thread 3
-delete thread 1)
-terminate 4: ok
-delete thread 4$
+delete thread 1)$
 
 --- response_body
 hello from f
@@ -972,7 +918,7 @@ hello from g
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 local sock = ngx.socket.tcp()
                 local ok, err = sock:connect("127.0.0.1", $TEST_NGINX_MEMCACHED_PORT)
                 if not ok then
@@ -998,7 +944,6 @@ hello from g
             ngx.thread.spawn(f)
             ngx.say("after")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -1011,8 +956,6 @@ terminate 1: ok
 delete thread 1
 terminate 2: ok
 delete thread 2
-terminate 3: ok
-delete thread 3
 
 --- response_body
 before
@@ -1027,7 +970,7 @@ received: OK
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 local sock = ngx.socket.udp()
                 local ok, err = sock:setpeername("127.0.0.1", 12345)
                 local bytes, err = sock:send("blah")
@@ -1049,7 +992,6 @@ received: OK
             ngx.thread.spawn(f)
             ngx.say("after")
         ';
-        content_by_lua return;
     }
 --- request
 GET /lua
@@ -1062,16 +1004,12 @@ terminate 1: ok
 delete thread 1
 terminate 2: ok
 delete thread 2
-terminate 3: ok
-delete thread 3
 |create 2 in 1
 spawn user thread 2 in 1
 terminate 2: ok
 terminate 1: ok
 delete thread 2
-delete thread 1
-terminate 3: ok
-delete thread 3)$
+delete thread 1)$
 
 --- udp_listen: 12345
 --- udp_query: blah
@@ -1093,7 +1031,7 @@ after)$
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.req.read_body()
                 local body = ngx.req.get_body_data()
                 ngx.say("body: ", body)
@@ -1121,9 +1059,7 @@ spawn user thread 2 in 1
 terminate 1: ok
 delete thread 1
 terminate 2: ok
-delete thread 2)
-terminate 3: ok
-delete thread 3$
+delete thread 2)$
 
 --- response_body_like chop
 ^(?:before
@@ -1141,7 +1077,7 @@ body: hello world)$
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 local sock = ngx.req.socket()
                 local body, err = sock:receive(11)
                 if not body then
@@ -1156,7 +1092,6 @@ body: hello world)$
             ngx.thread.spawn(f)
             ngx.say("after")
         ';
-        content_by_lua return;
     }
 --- request
 POST /lua
@@ -1174,9 +1109,7 @@ spawn user thread 2 in 1
 terminate 1: ok
 delete thread 1
 terminate 2: ok
-delete thread 2)
-terminate 3: ok
-delete thread 3$
+delete thread 2)$
 
 --- response_body_like chop
 ^(?:before
@@ -1210,7 +1143,6 @@ body: hello world)$
 
             ngx.say("ok")
         ';
-        content_by_lua return;
     }
 
     location ~ ^/proxy/(\d+) {
@@ -1257,9 +1189,7 @@ post subreq: /proxy/2 rc=404, status=0 a=0
 subrequest /proxy/2 done
 terminate 3: ok
 delete thread 3
-terminate 4: ok
-delete thread 4
-finalize request /t: rc:0 c:1 a:1
+finalize request /t: rc:200 c:1 a:1
 (?:finalize request /t: rc:0 c:1 a:1)?$
 
 --- response_body
@@ -1292,7 +1222,6 @@ status: 404
 
             ngx.say("ok")
         ';
-        content_by_lua return;
     }
 
     location ~ ^/proxy/(\d+) {
@@ -1338,9 +1267,7 @@ delete thread 4
 terminate 3: ok
 delete thread 3
 terminate 2: ok
-delete thread 2)
-terminate 7: ok
-delete thread 7
+delete thread 2)$
 
 --- response_body
 ok
@@ -1375,7 +1302,6 @@ status: 404
 
             ngx.say("ok")
         ';
-        content_by_lua return;
     }
 
     location ~ ^/proxy/(\d+) {
@@ -1433,9 +1359,7 @@ post subreq: /proxy/2 rc=0, status=201 a=0
 subrequest /proxy/2 done
 terminate 3: ok
 delete thread 3
-terminate 6: ok
-delete thread 6
-finalize request /t: rc:0 c:1 a:1
+finalize request /t: rc:200 c:1 a:1
 (?:finalize request /t: rc:0 c:1 a:1)?$
 
 --- response_body
@@ -1468,7 +1392,6 @@ status: 201
 
             ngx.say("ok")
         ';
-        content_by_lua return;
     }
 
     location ~ ^/proxy/(\d+) {
@@ -1520,9 +1443,7 @@ post subreq: /proxy/2 rc=204, status=204 a=0
 subrequest /proxy/2 done
 terminate 3: ok
 delete thread 3
-terminate 6: ok
-delete thread 6
-finalize request /t: rc:0 c:1 a:1
+finalize request /t: rc:200 c:1 a:1
 (?:finalize request /t: rc:0 c:1 a:1)?$
 
 --- response_body
@@ -1532,4 +1453,3 @@ status: 204
 --- no_error_log
 [error]
 --- timeout: 3
-

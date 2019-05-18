@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 use t::StapThread;
 
@@ -200,7 +199,7 @@ bad things happen
 
     location = /sub {
         proxy_ignore_client_abort on;
-        proxy_pass http://agentzh.org:12345/;
+        proxy_pass http://127.0.0.2:12345/;
     }
 
     location = /sleep {
@@ -241,7 +240,7 @@ client prematurely closed connection
 
     location = /sub {
         proxy_ignore_client_abort off;
-        proxy_pass http://agentzh.org:12345/;
+        proxy_pass http://127.0.0.2:12345/;
     }
 --- request
 GET /t
@@ -546,7 +545,7 @@ client prematurely closed connection
                 return
             end
 
-            ok, err = sock:connect("127.0.0.1", $TEST_NGINX_REDIS_PORT)
+            local ok, err = sock:connect("127.0.0.1", $TEST_NGINX_REDIS_PORT)
             if not ok then
                 ngx.log(ngx.ERR, "failed to connect: ", err)
                 return
@@ -733,6 +732,7 @@ delete thread 2
 lua req cleanup
 
 --- shutdown: 1
+--- wait: 0.1
 --- ignore_response
 --- no_error_log
 [error]
@@ -848,4 +848,3 @@ delete thread 1
 --- no_error_log
 [error]
 [alert]
-

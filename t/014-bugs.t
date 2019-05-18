@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 #worker_connections(1014);
@@ -9,18 +8,34 @@ log_level('debug');
 
 repeat_each(3);
 
-plan tests => repeat_each() * (blocks() * 2 + 24);
+plan tests => repeat_each() * (blocks() * 2 + 30);
 
 our $HtmlDir = html_dir;
 #warn $html_dir;
+
+$ENV{TEST_NGINX_HTML_DIR} = $HtmlDir;
+$ENV{TEST_NGINX_REDIS_PORT} ||= 6379;
 
 #no_diff();
 #no_long_string();
 
 $ENV{TEST_NGINX_MEMCACHED_PORT} ||= 11211;
+$ENV{TEST_NGINX_RESOLVER} ||= '8.8.8.8';
 
 #no_shuffle();
 no_long_string();
+
+sub read_file {
+    my $infile = shift;
+    open my $in, $infile
+        or die "cannot open $infile for reading: $!";
+    my $cert = do { local $/; <$in> };
+    close $in;
+    $cert;
+}
+
+our $TestCertificate = read_file("t/cert/test.crt");
+our $TestCertificateKey = read_file("t/cert/test.key");
 
 run_tests();
 
@@ -28,7 +43,7 @@ __DATA__
 
 === TEST 1: sanity
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
     location /load {
         content_by_lua '
@@ -43,7 +58,7 @@ GET /load
 >>> foo.lua
 module(..., package.seeall);
 
-function foo () 
+function foo ()
     return 1
     return 2
 end
@@ -54,7 +69,7 @@ end
 
 === TEST 2: sanity
 --- http_config
-lua_package_path '/home/agentz/rpm/BUILD/lua-yajl-1.1/build/?.so;/home/lz/luax/?.so;./?.so';
+lua_package_cpath '/home/agentz/rpm/BUILD/lua-yajl-1.1/build/?.so;/home/lz/luax/?.so;./?.so';
 --- config
     location = '/report/listBidwordPrices4lzExtra.htm' {
         content_by_lua '
@@ -97,7 +112,7 @@ GET /report/listBidwordPrices4lzExtra.htm?words=123,156,2532
     }
     location = /main {
         content_by_lua '
-            res = ngx.location.capture("/memc?c=get&k=foo&v=")
+            local res = ngx.location.capture("/memc?c=get&k=foo&v=")
             ngx.say("1: ", res.body)
 
             res = ngx.location.capture("/memc?c=set&k=foo&v=bar");
@@ -189,7 +204,7 @@ https://github.com/chaoslawful/lua-nginx-module/issues/37
         content_by_lua '
             -- local yajl = require "yajl"
             ngx.header["Set-Cookie"] = {}
-            res = ngx.location.capture("/sub")
+            local res = ngx.location.capture("/sub")
 
             for i,j in pairs(res.header) do
                 ngx.header[i] = j
@@ -216,7 +231,7 @@ Set-Cookie: TestCookie2=bar.*"
     }
 --- user_files
 >>> foo.lua
-res = {}
+local res = {}
 res = {'good 1', 'good 2', 'good 3'}
 return ngx.redirect("/somedir/" .. ngx.escape_uri(res[math.random(1,#res)]))
 --- request
@@ -382,6 +397,7 @@ It works!
 --- response_body
 status = 301
 Location: /foo/
+--- no_check_leak
 
 
 
@@ -563,7 +579,7 @@ $s
 
 
 
-=== TEST 26: unexpected globals sharing by using _G
+=== TEST 26: globals sharing by using _G
 --- config
     location /test {
         content_by_lua '
@@ -577,12 +593,12 @@ $s
     }
 --- pipelined_requests eval
 ["GET /test", "GET /test", "GET /test"]
---- response_body eval
-["0", "0", "0"]
+--- response_body_like eval
+[qr/\A[036]\z/, qr/\A[147]\z/, qr/\A[258]\z/]
 
 
 
-=== TEST 27: unexpected globals sharing by using _G (set_by_lua*)
+=== TEST 27: globals sharing by using _G (set_by_lua*)
 --- config
     location /test {
         set_by_lua $a '
@@ -597,12 +613,12 @@ $s
     }
 --- pipelined_requests eval
 ["GET /test", "GET /test", "GET /test"]
---- response_body eval
-["0", "0", "0"]
+--- response_body_like eval
+[qr/\A[036]\z/, qr/\A[147]\z/, qr/\A[258]\z/]
 
 
 
-=== TEST 28: unexpected globals sharing by using _G (log_by_lua*)
+=== TEST 28: globals sharing by using _G (log_by_lua*)
 --- http_config
     lua_shared_dict log_dict 100k;
 --- config
@@ -617,19 +633,19 @@ $s
             if _G.t then
                 _G.t = _G.t + 1
             else
-                _G.t = 0
+                _G.t = 1
             end
             log_dict:set("cnt", t)
         ';
     }
 --- pipelined_requests eval
 ["GET /test", "GET /test", "GET /test"]
---- response_body eval
-["0", "0", "0"]
+--- response_body_like eval
+[qr/\A[036]\z/, qr/\A[147]\z/, qr/\A[258]\z/]
 
 
 
-=== TEST 29: unexpected globals sharing by using _G (header_filter_by_lua*)
+=== TEST 29: globals sharing by using _G (header_filter_by_lua*)
 --- config
     location /test {
         header_filter_by_lua '
@@ -647,12 +663,12 @@ $s
     }
 --- pipelined_requests eval
 ["GET /test", "GET /test", "GET /test"]
---- response_body eval
-["0", "0", "0"]
+--- response_body_like eval
+[qr/\A[036]\z/, qr/\A[147]\z/, qr/\A[258]\z/]
 
 
 
-=== TEST 30: unexpected globals sharing by using _G (body_filter_by_lua*)
+=== TEST 30: globals sharing by using _G (body_filter_by_lua*)
 --- config
     location /test {
         body_filter_by_lua '
@@ -670,8 +686,9 @@ $s
     }
 --- request
 GET /test
---- response_body
-a0
+--- response_body_like eval
+qr/\Aa[036]
+\z/
 --- no_error_log
 [error]
 
@@ -696,6 +713,7 @@ Content-Type: application/json; charset=utf-8
 
 
 === TEST 32: hang on upstream_next (from kindy)
+--- no_check_leak
 --- http_config
     upstream xx {
         server 127.0.0.1:$TEST_NGINX_SERVER_PORT max_fails=5;
@@ -755,7 +773,7 @@ See more details here: http://mailman.nginx.org/pipermail/nginx-devel/2013-Janua
     location /t {
         set $myserver nginx.org;
         proxy_pass http://$myserver/;
-        resolver 127.0.0.1;
+        resolver 127.0.0.1:6789;
     }
 --- request
     GET /t
@@ -766,7 +784,7 @@ See more details here: http://mailman.nginx.org/pipermail/nginx-devel/2013-Janua
 --- no_error_log
 [alert]
 --- error_log eval
-qr/recv\(\) failed \(\d+: Connection refused\) while resolving/
+qr/(?:send|recv)\(\) failed \(\d+: Connection refused\) while resolving/
 
 
 
@@ -783,7 +801,7 @@ qr/recv\(\) failed \(\d+: Connection refused\) while resolving/
     location ~ /myproxy {
 
         rewrite    ^/myproxy/(.*)  /$1  break;
-        resolver_timeout 1s;
+        resolver_timeout 3s;
         #resolver 172.16.0.23; #  AWS DNS resolver address is the same in all regions - 172.16.0.23
         resolver 8.8.8.8;
         proxy_read_timeout 1s;
@@ -809,7 +827,7 @@ Hello, 502
 
 --- error_log
 not-exist.agentzh.org could not be resolved
---- timeout: 3
+--- timeout: 10
 
 
 
@@ -825,3 +843,179 @@ ok
 --- no_error_log
 [error]
 
+
+
+=== TEST 37: resolving names with a trailing dot
+--- http_config eval
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
+--- config
+    location /t {
+        resolver $TEST_NGINX_RESOLVER ipv6=off;
+        set $myhost 'agentzh.org.';
+        proxy_pass http://$myhost/misc/.vimrc;
+    }
+--- request
+GET /t
+--- response_body_like: An example for a vimrc file
+--- no_error_log
+[error]
+--- timeout: 10
+
+
+
+=== TEST 38: resolving names with a trailing dot
+--- http_config eval
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';
+    server {
+        listen 12354;
+
+        location = /t {
+            echo 'args: \$args';
+        }
+    }
+"
+--- config
+    location = /t {
+        set $args "foo=1&bar=2";
+        proxy_pass http://127.0.0.1:12354;
+    }
+
+--- request
+GET /t
+--- response_body
+args: foo=1&bar=2
+--- no_error_log
+[error]
+--- no_check_leak
+
+
+
+=== TEST 39: lua_code_cache off + setkeepalive
+--- http_config eval
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
+--- config
+    lua_code_cache off;
+    location = /t {
+        set $port $TEST_NGINX_REDIS_PORT;
+        content_by_lua '
+            local test = require "test"
+            local port = ngx.var.port
+            test.go(port)
+        ';
+    }
+--- user_files
+>>> test.lua
+module("test", package.seeall)
+
+function go(port)
+    local sock = ngx.socket.tcp()
+    local sock2 = ngx.socket.tcp()
+
+    sock:settimeout(1000)
+    sock2:settimeout(6000000)
+
+    local ok, err = sock:connect("127.0.0.1", port)
+    if not ok then
+        ngx.say("failed to connect: ", err)
+        return
+    end
+
+    local ok, err = sock2:connect("127.0.0.1", port)
+    if not ok then
+        ngx.say("failed to connect: ", err)
+        return
+    end
+
+    local ok, err = sock:setkeepalive(100, 100)
+    if not ok then
+        ngx.say("failed to set reusable: ", err)
+    end
+
+    local ok, err = sock2:setkeepalive(200, 100)
+    if not ok then
+        ngx.say("failed to set reusable: ", err)
+    end
+
+    ngx.say("done")
+end
+--- request
+GET /t
+--- stap2
+F(ngx_close_connection) {
+    println("=== close connection")
+    print_ubacktrace()
+}
+--- stap_out2
+--- response_body
+done
+--- wait: 0.5
+--- no_error_log
+[error]
+
+
+
+=== TEST 40: .lua file of exactly N*1024 bytes (github issue #385)
+--- config
+    location = /t {
+        content_by_lua_file html/a.lua;
+    }
+
+--- user_files eval
+my $s = "ngx.say('ok')\n";
+">>> a.lua\n" . (" " x (8192 - length($s))) . $s;
+
+--- request
+GET /t
+--- response_body
+ok
+--- no_error_log
+[error]
+
+
+
+=== TEST 41: https proxy has no timeout protection for ssl handshake
+--- http_config
+    # to suppress a valgrind false positive in the nginx core:
+    proxy_ssl_session_reuse off;
+
+    server {
+        listen unix:$TEST_NGINX_HTML_DIR/nginx.sock ssl;
+        ssl_certificate ../html/test.crt;
+        ssl_certificate_key ../html/test.key;
+
+        location /foo {
+            echo foo;
+        }
+    }
+
+    upstream local {
+        server unix:$TEST_NGINX_HTML_DIR/nginx.sock;
+    }
+
+--- config
+    location = /t {
+        proxy_pass https://local/foo;
+    }
+
+--- user_files eval
+">>> test.key
+$::TestCertificateKey
+>>> test.crt
+$::TestCertificate"
+
+--- request
+GET /t
+
+--- stap
+probe process("nginx").function("ngx_http_upstream_ssl_handshake") {
+    printf("read timer set: %d\n", $c->read->timer_set)
+    printf("write timer set: %d\n", $c->write->timer_set)
+}
+--- stap_out
+read timer set: 0
+write timer set: 1
+
+--- response_body eval
+--- no_error_log
+[error]
+[alert]

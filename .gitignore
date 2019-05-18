@@ -26,6 +26,7 @@ test/blib
 test.sh
 t.sh
 t/t.sh
+t/servroot*
 test/t/servroot/
 releng
 reset
@@ -142,6 +143,7 @@ ERRORS
 src/bodyfilterby.[ch]
 src/tcp.[ch]
 src/initby.[ch]
+src/initworkerby.[ch]
 src/socket.[ch]
 src/udp.[ch]
 src/method.[ch]
@@ -151,6 +153,15 @@ src/probe.h
 src/uthread.[ch]
 src/timer.[ch]
 src/config.[ch]
+src/worker.[ch]
+src/certby.[ch]
+src/storeby.[ch]
+src/fetchby.[ch]
+src/ssl.[ch]
+src/ocsp.c
+src/lex.[ch]
+src/balancer.[ch]
+src/semaphore.[ch]
 *.plist
 lua
 ttimer

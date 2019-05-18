@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 repeat_each(2);
@@ -326,7 +325,7 @@ found the end of the stream
 
 === TEST 4: attempt to use the req socket across request boundary
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
     location /t {
         rewrite_by_lua '
@@ -377,7 +376,7 @@ hello world
 === TEST 5: receive until on request_body - receiveuntil(1) on the last byte of the body
 See https://groups.google.com/group/openresty/browse_thread/thread/43cf01da3c681aba for details
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
     location /t {
         rewrite_by_lua '
@@ -441,7 +440,7 @@ done
 
 === TEST 6: pipelined POST requests
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
     location /t {
         rewrite_by_lua '
@@ -533,4 +532,3 @@ Expect: 100-Continue
 \breceived: hello\b.*?\breceived:  worl\b
 --- no_error_log
 [error]
-

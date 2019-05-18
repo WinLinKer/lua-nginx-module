@@ -1,12 +1,10 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 repeat_each(2);
-#repeat_each(1);
 
-plan tests => repeat_each() * (blocks() * 2 + 1);
+plan tests => repeat_each() * (blocks() * 2 + 2);
 
 no_long_string();
 
@@ -23,7 +21,7 @@ __DATA__
 --- request
 GET /escape
 --- response_body
-a%20%e4%bd%a0
+a%20%E4%BD%A0
 
 
 
@@ -48,7 +46,7 @@ a 你
 --- request
 GET /escape
 --- response_body
-a%20%e4%bd%a0
+a%20%E4%BD%A0
 
 
 
@@ -73,7 +71,7 @@ a 你
 --- request
 GET /escape
 --- response_body
-a%2bb
+a%2Bb
 
 
 
@@ -86,7 +84,7 @@ a%2bb
 --- request
 GET /escape
 --- response_body
-%22a%2fb%3d%7b%7d%3a%3c%3e%3b%26%5b%5d%5c%5e
+%22a%2Fb%3D%7B%7D%3A%3C%3E%3B%26%5B%5D%5C%5E
 
 
 
@@ -130,3 +128,72 @@ abc
 GET /escape
 --- response_body eval: "\n"
 
+
+
+=== TEST 10: escape nil
+--- config
+    location /escape {
+        set_by_lua $res "return ngx.escape_uri(nil)";
+        echo "[$res]";
+    }
+--- request
+GET /escape
+--- response_body
+[]
+
+
+
+=== TEST 11: escape numbers
+--- config
+    location /escape {
+        set_by_lua $res "return ngx.escape_uri(32)";
+        echo "[$res]";
+    }
+--- request
+GET /escape
+--- response_body
+[32]
+
+
+
+=== TEST 12: unescape nil
+--- config
+    location = /t {
+        set_by_lua $res "return ngx.unescape_uri(nil)";
+        echo "[$res]";
+    }
+--- request
+GET /t
+--- response_body
+[]
+
+
+
+=== TEST 13: unescape numbers
+--- config
+    location = /t {
+        set_by_lua $res "return ngx.unescape_uri(32)";
+        echo "[$res]";
+    }
+--- request
+GET /t
+--- response_body
+[32]
+
+
+
+=== TEST 14: reserved chars
+--- config
+    location /lua {
+        content_by_lua_block {
+            ngx.say(ngx.escape_uri("-_.!~*'()"))
+            ngx.say(ngx.escape_uri(",$@|`"))
+        }
+    }
+--- request
+GET /lua
+--- response_body
+-_.!~*'()
+%2C%24%40%7C%60
+--- no_error_log
+[error]

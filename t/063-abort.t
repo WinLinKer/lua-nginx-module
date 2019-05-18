@@ -1,5 +1,4 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 worker_connections(1014);
@@ -23,7 +22,7 @@ __DATA__
 
 === TEST 1: ngx.exit(400) should abort print
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /memc_query {
             internal;
@@ -69,7 +68,7 @@ GET /test?a
 
 === TEST 2: ngx.exit(400) should abort ngx.log
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /memc_query {
             internal;
@@ -117,7 +116,7 @@ GET /test?a
 
 === TEST 3: ngx.exit(400) should abort ngx.location.capture
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /memc_query {
             internal;
@@ -162,7 +161,7 @@ the "$memc_key" variable is not set
 
 === TEST 4: ngx.exit(400) should abort ngx.location.capture_multi
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /memc_query {
             internal;
@@ -207,7 +206,7 @@ the "$memc_key" variable is not set
 
 === TEST 5: ngx.exit(400) should abort ngx.redirect
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -234,7 +233,7 @@ lua redirect to "/blah" with code 302
 
 === TEST 6: ngx.exit(400) should abort ngx.exit
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -261,7 +260,7 @@ lua exit with code 503
 
 === TEST 7: ngx.exit(400) should abort ngx.exec
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -288,7 +287,7 @@ lua exec "/blah?"
 
 === TEST 8: ngx.exit(400) should abort ngx.send_headers
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -315,7 +314,7 @@ lua send headers
 
 === TEST 9: ngx.exit(400) should abort ngx.print
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -342,7 +341,7 @@ lua print response
 
 === TEST 10: ngx.exit(400) should abort ngx.say
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -369,7 +368,7 @@ lua say response
 
 === TEST 11: ngx.exit(400) should abort ngx.flush
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -396,7 +395,7 @@ lua flush asynchronously
 
 === TEST 12: ngx.exit(400) should abort ngx.eof
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -423,7 +422,7 @@ lua send eof
 
 === TEST 13: ngx.exit(400) should abort ngx.re.match
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -450,7 +449,7 @@ lua compiling match regex "a" with options "jo"
 
 === TEST 14: ngx.exit(400) should abort ngx.re.gmatch
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -477,7 +476,7 @@ lua compiling gmatch regex "a" with options "jo"
 
 === TEST 15: ngx.exit(400) should abort ngx.re.sub
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -504,7 +503,7 @@ lua compiling sub regex "a" with options "jo"
 
 === TEST 16: ngx.exit(400) should abort ngx.re.gsub
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -531,7 +530,7 @@ lua compiling gsub regex "a" with options "jo"
 
 === TEST 17: ngx.exit(400) should abort ngx.shared.DICT (set)
 --- http_config eval
-    "lua_shared_dict dogs 1m; lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_shared_dict dogs 1m; lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -561,7 +560,7 @@ foo = 56
 
 === TEST 18: ngx.exit(400) should abort ngx.shared.DICT (replace)
 --- http_config eval
-    "lua_shared_dict dogs 1m; lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_shared_dict dogs 1m; lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -591,7 +590,7 @@ foo = 56
 
 === TEST 19: ngx.exit(400) should abort ngx.shared.DICT (incr)
 --- http_config eval
-    "lua_shared_dict dogs 1m; lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_shared_dict dogs 1m; lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -621,7 +620,7 @@ foo = 88
 
 === TEST 20: ngx.exit(400) should abort ngx.shared.DICT (get)
 --- http_config eval
-    "lua_shared_dict dogs 1m; lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_shared_dict dogs 1m; lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -650,7 +649,7 @@ fetching key "foo" in shared dict "dogs"
 
 === TEST 21: ngx.exit(400) should skip os.execute
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -680,7 +679,7 @@ GET /test
 
 === TEST 22: ngx.exit(400) should break pcall and skip os.execute
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -710,7 +709,7 @@ fetching key "foo" in shared dict "dogs"
 
 === TEST 23: ngx.exit(400) should break pcall and skip os.execute (all in user module)
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -740,7 +739,7 @@ GET /test
 
 === TEST 24: ngx.redirect() should break pcall and skip os.execute (all in user module)
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -770,7 +769,7 @@ GET /test
 
 === TEST 25: ngx.redirect() should skip os.execute (all in user module)
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -800,7 +799,7 @@ GET /test
 
 === TEST 26: ngx.exec() should break pcall and skip os.execute (all in user module)
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -833,7 +832,7 @@ foo
 
 === TEST 27: ngx.exec() should skip os.execute (all in user module)
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -866,7 +865,7 @@ foo
 
 === TEST 28: ngx.set_uri(uri, true) should break pcall and skip os.execute (all in user module)
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             rewrite_by_lua '
@@ -922,7 +921,7 @@ hello world
 
 === TEST 30: ngx.exit(400) should break xpcall and skip os.execute (all in user module)
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -956,7 +955,7 @@ GET /test
 
 === TEST 31: ngx.exec() should skip os.execute (all in user module)
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -989,7 +988,7 @@ foo
 
 === TEST 32: ngx.exec() should break pcall and skip os.execute (all in user module)
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
         location = /test {
             content_by_lua '
@@ -1018,4 +1017,3 @@ foo
 --- no_error_log
 [error]
 --- timeout: 2
-

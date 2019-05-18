@@ -1,4 +1,3 @@
-
 /*
  * Copyright (C) Xiaozhe Wang (chaoslawful)
  * Copyright (C) Yichun Zhang (agentzh)
@@ -16,7 +15,7 @@
 #include "ngx_http_lua_args.h"
 #include "ngx_crc32.h"
 
-#if NGX_HAVE_SHA1
+#if (NGX_HAVE_SHA1)
 #include "ngx_sha1.h"
 #endif
 
@@ -115,18 +114,24 @@ ngx_http_lua_ngx_escape_uri(lua_State *L)
         return luaL_error(L, "expecting one argument");
     }
 
+    if (lua_isnil(L, 1)) {
+        lua_pushliteral(L, "");
+        return 1;
+    }
+
     src = (u_char *) luaL_checklstring(L, 1, &len);
 
     if (len == 0) {
         return 1;
     }
 
-    escape = 2 * ngx_http_lua_escape_uri(NULL, src, len, NGX_ESCAPE_URI);
+    escape = 2 * ngx_http_lua_escape_uri(NULL, src, len,
+                                         NGX_ESCAPE_URI_COMPONENT);
 
     if (escape) {
         dlen = escape + len;
         dst = lua_newuserdata(L, dlen);
-        ngx_http_lua_escape_uri(dst, src, len, NGX_ESCAPE_URI);
+        ngx_http_lua_escape_uri(dst, src, len, NGX_ESCAPE_URI_COMPONENT);
         lua_pushlstring(L, (char *) dst, dlen);
     }
 
@@ -143,6 +148,11 @@ ngx_http_lua_ngx_unescape_uri(lua_State *L)
 
     if (lua_gettop(L) != 1) {
         return luaL_error(L, "expecting one argument");
+    }
+
+    if (lua_isnil(L, 1)) {
+        lua_pushliteral(L, "");
+        return 1;
     }
 
     src = (u_char *) luaL_checklstring(L, 1, &len);
@@ -229,7 +239,7 @@ ngx_http_lua_ngx_escape_sql_str(u_char *dst, u_char *src, size_t size)
                     case '\n':
                     case '\r':
                     case '\t':
-                    case 26:  /* \z */
+                    case 26:  /* \Z */
                     case '\\':
                     case '\'':
                     case '"':
@@ -276,7 +286,7 @@ ngx_http_lua_ngx_escape_sql_str(u_char *dst, u_char *src, size_t size)
 
                 case 26:
                     *dst++ = '\\';
-                    *dst++ = 'z';
+                    *dst++ = 'Z';
                     break;
 
                 case '\\':
@@ -420,13 +430,11 @@ ngx_http_lua_ngx_decode_base64(lua_State *L)
         return luaL_error(L, "expecting one argument");
     }
 
-    if (lua_isnil(L, 1)) {
-        src.data = (u_char *) "";
-        src.len = 0;
-
-    } else {
-        src.data = (u_char *) luaL_checklstring(L, 1, &src.len);
+    if (lua_type(L, 1) != LUA_TSTRING) {
+        return luaL_error(L, "string argument only");
     }
+
+    src.data = (u_char *) luaL_checklstring(L, 1, &src.len);
 
     p.len = ngx_base64_decoded_length(src.len);
 
@@ -443,13 +451,68 @@ ngx_http_lua_ngx_decode_base64(lua_State *L)
 }
 
 
+static void
+ngx_http_lua_encode_base64(ngx_str_t *dst, ngx_str_t *src, int no_padding)
+{
+    u_char         *d, *s;
+    size_t          len;
+    static u_char   basis[] =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+    len = src->len;
+    s = src->data;
+    d = dst->data;
+
+    while (len > 2) {
+        *d++ = basis[(s[0] >> 2) & 0x3f];
+        *d++ = basis[((s[0] & 3) << 4) | (s[1] >> 4)];
+        *d++ = basis[((s[1] & 0x0f) << 2) | (s[2] >> 6)];
+        *d++ = basis[s[2] & 0x3f];
+
+        s += 3;
+        len -= 3;
+    }
+
+    if (len) {
+        *d++ = basis[(s[0] >> 2) & 0x3f];
+
+        if (len == 1) {
+            *d++ = basis[(s[0] & 3) << 4];
+            if (!no_padding) {
+                *d++ = '=';
+            }
+
+        } else {
+            *d++ = basis[((s[0] & 3) << 4) | (s[1] >> 4)];
+            *d++ = basis[(s[1] & 0x0f) << 2];
+        }
+
+        if (!no_padding) {
+            *d++ = '=';
+        }
+    }
+
+    dst->len = d - dst->data;
+}
+
+
+static size_t
+ngx_http_lua_base64_encoded_length(size_t n, int no_padding)
+{
+    return no_padding ? (n * 8 + 5) / 6 : ngx_base64_encoded_length(n);
+}
+
+
 static int
 ngx_http_lua_ngx_encode_base64(lua_State *L)
 {
+    int                      n;
+    int                      no_padding = 0;
     ngx_str_t                p, src;
 
-    if (lua_gettop(L) != 1) {
-        return luaL_error(L, "expecting one argument");
+    n = lua_gettop(L);
+    if (n != 1 && n != 2) {
+        return luaL_error(L, "expecting one or two arguments");
     }
 
     if (lua_isnil(L, 1)) {
@@ -460,11 +523,17 @@ ngx_http_lua_ngx_encode_base64(lua_State *L)
         src.data = (u_char *) luaL_checklstring(L, 1, &src.len);
     }
 
-    p.len = ngx_base64_encoded_length(src.len);
+    if (n == 2) {
+        /* get the 2nd optional argument */
+        luaL_checktype(L, 2, LUA_TBOOLEAN);
+        no_padding = lua_toboolean(L, 2);
+    }
+
+    p.len = ngx_http_lua_base64_encoded_length(src.len, no_padding);
 
     p.data = lua_newuserdata(L, p.len);
 
-    ngx_encode_base64(&p, &src);
+    ngx_http_lua_encode_base64(&p, &src, no_padding);
 
     lua_pushlstring(L, (char *) p.data, p.len);
 
@@ -480,7 +549,7 @@ ngx_http_lua_ngx_crc32_short(lua_State *L)
 
     if (lua_gettop(L) != 1) {
         return luaL_error(L, "expecting one argument, but got %d",
-                lua_gettop(L));
+                          lua_gettop(L));
     }
 
     p = (u_char *) luaL_checklstring(L, 1, &len);
@@ -570,7 +639,7 @@ ngx_http_lua_ngx_hmac_sha1(lua_State *L)
     const EVP_MD            *evp_md;
 
     if (lua_gettop(L) != 2) {
-        return luaL_error(L, "expecting one argument, but got %d",
+        return luaL_error(L, "expecting 2 arguments, but got %d",
                           lua_gettop(L));
     }
 
@@ -588,7 +657,7 @@ ngx_http_lua_ngx_hmac_sha1(lua_State *L)
 #endif
 
 
-#ifndef NGX_HTTP_LUA_NO_FFI_API
+#ifndef NGX_LUA_NO_FFI_API
 void
 ngx_http_lua_ffi_md5_bin(const u_char *src, size_t len, u_char *dst)
 {
@@ -617,7 +686,7 @@ ngx_http_lua_ffi_md5(const u_char *src, size_t len, u_char *dst)
 int
 ngx_http_lua_ffi_sha1_bin(const u_char *src, size_t len, u_char *dst)
 {
-#if NGX_HAVE_SHA1
+#if (NGX_HAVE_SHA1)
     ngx_sha1_t               sha;
 
     ngx_sha1_init(&sha);
@@ -632,7 +701,8 @@ ngx_http_lua_ffi_sha1_bin(const u_char *src, size_t len, u_char *dst)
 
 
 size_t
-ngx_http_lua_ffi_encode_base64(const u_char *src, size_t slen, u_char *dst)
+ngx_http_lua_ffi_encode_base64(const u_char *src, size_t slen, u_char *dst,
+    int no_padding)
 {
     ngx_str_t      in, out;
 
@@ -641,7 +711,7 @@ ngx_http_lua_ffi_encode_base64(const u_char *src, size_t slen, u_char *dst)
 
     out.data = dst;
 
-    ngx_encode_base64(&out, &in);
+    ngx_http_lua_encode_base64(&out, &in, no_padding);
 
     return out.len;
 }
@@ -682,16 +752,30 @@ size_t
 ngx_http_lua_ffi_uri_escaped_length(const u_char *src, size_t len)
 {
     return len + 2 * ngx_http_lua_escape_uri(NULL, (u_char *) src, len,
-                                             NGX_ESCAPE_URI);
+                                             NGX_ESCAPE_URI_COMPONENT);
 }
 
 
 void
 ngx_http_lua_ffi_escape_uri(const u_char *src, size_t len, u_char *dst)
 {
-    ngx_http_lua_escape_uri(dst, (u_char *) src, len, NGX_ESCAPE_URI);
+    ngx_http_lua_escape_uri(dst, (u_char *) src, len, NGX_ESCAPE_URI_COMPONENT);
 }
 
+
+void
+ngx_http_lua_ffi_str_replace_char(u_char *buf, size_t len, const u_char find,
+    const u_char replace)
+{
+    while (len) {
+        if (*buf == find) {
+            *buf = replace;
+        }
+
+        buf++;
+        len--;
+    }
+}
 #endif
 
 /* vi:set ft=c ts=4 sw=4 et fdm=marker: */

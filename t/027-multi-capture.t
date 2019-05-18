@@ -1,11 +1,10 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 repeat_each(10);
 
-plan tests => repeat_each() * (blocks() * 2 + 2);
+plan tests => repeat_each() * (blocks() * 2 + 4);
 
 #$ENV{LUA_PATH} = $ENV{HOME} . '/work/JSON4Lua-0.9.30/json/?.lua';
 $ENV{TEST_NGINX_MYSQL_PORT} ||= 3306;
@@ -152,7 +151,7 @@ res2.body = b
 
     location /main {
         content_by_lua '
-            res = ngx.location.capture("/foo?n=1")
+            local res = ngx.location.capture("/foo?n=1")
             ngx.say("top res.status = " .. res.status)
             ngx.say("top res.body = [" .. res.body .. "]")
         ';
@@ -543,21 +542,21 @@ res4.body = f
     location /main {
         rewrite_by_lua '
             local res = ngx.location.capture("/a")
-            ngx.say("rewrite a: " .. res.body)
+            print("rewrite a: " .. res.body)
 
             res = ngx.location.capture("/b")
-            ngx.say("rewrite b: " .. res.body)
+            print("rewrite b: " .. res.body)
 
             res = ngx.location.capture("/c")
-            ngx.say("rewrite c: " .. res.body)
+            print("rewrite c: " .. res.body)
         ';
 
         access_by_lua '
             local res = ngx.location.capture("/A")
-            ngx.say("access A: " .. res.body)
+            print("access A: " .. res.body)
 
             res = ngx.location.capture("/B")
-            ngx.say("access B: " .. res.body)
+            print("access B: " .. res.body)
         ';
 
         content_by_lua '
@@ -594,14 +593,18 @@ res4.body = f
 --- request
     GET /main
 --- response_body
+content d: d
+content e: e
+content f: f
+
+--- log_level: info
+--- grep_error_log eval: qr/rewrite .+?(?= while )|access .+?(?=,)/
+--- grep_error_log_out
 rewrite a: a
 rewrite b: b
 rewrite c: c
 access A: A
 access B: B
-content d: d
-content e: e
-content f: f
 
 
 
@@ -612,17 +615,17 @@ content f: f
             local a, b, c = ngx.location.capture_multi{
                 {"/a"}, {"/b"}, {"/c"},
             }
-            ngx.say("rewrite a: " .. a.body)
-            ngx.say("rewrite b: " .. b.body)
-            ngx.say("rewrite c: " .. c.body)
+            print("rewrite a: " .. a.body)
+            print("rewrite b: " .. b.body)
+            print("rewrite c: " .. c.body)
         ';
 
         access_by_lua '
             local A, B = ngx.location.capture_multi{
                 {"/A"}, {"/B"},
             }
-            ngx.say("access A: " .. A.body)
-            ngx.say("access B: " .. B.body)
+            print("access A: " .. A.body)
+            print("access B: " .. B.body)
         ';
 
         content_by_lua '
@@ -703,14 +706,17 @@ F(ngx_http_lua_handle_subreq_responses) {
 }
 
 --- response_body
+content d: d
+content e: e
+content f: f
+--- log_level: info
+--- grep_error_log eval: qr/rewrite .+?(?= while )|access .+?(?=,)/
+--- grep_error_log_out
 rewrite a: a
 rewrite b: b
 rewrite c: c
 access A: A
 access B: B
-content d: d
-content e: e
-content f: f
 
 
 
@@ -737,7 +743,7 @@ proxy_cache_path conf/cache levels=1:2 keys_zone=STATIC:10m inactive=10m max_siz
 
     location = /proxy {
             proxy_cache STATIC;
-            proxy_pass http://agentzh.org:12345;
+            proxy_pass http://127.0.0.2:12345;
             proxy_cache_key $proxy_host$uri$args;
             proxy_cache_valid any 1s;
             #proxy_http_version 1.1;
@@ -746,4 +752,3 @@ proxy_cache_path conf/cache levels=1:2 keys_zone=STATIC:10m inactive=10m max_siz
     GET /foo
 --- response_body
 ok
-

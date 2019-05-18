@@ -1,5 +1,4 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 #worker_connections(1014);
@@ -278,3 +277,47 @@ baz = 78
 [error]
 Failed to resume our co: 
 
+
+
+=== TEST 11: access a field in the ngx. table
+--- http_config
+    init_by_lua '
+        print("INIT 1: foo = ", ngx.foo)
+        ngx.foo = 3
+        print("INIT 2: foo = ", ngx.foo)
+    ';
+--- config
+    location /t {
+        echo ok;
+    }
+--- request
+GET /t
+--- response_body
+ok
+--- no_error_log
+[error]
+--- grep_error_log eval: qr/INIT \d+: foo = \S+/
+--- grep_error_log_out eval
+[
+"INIT 1: foo = nil
+INIT 2: foo = 3
+",
+"",
+]
+
+
+
+=== TEST 12: error in init
+--- http_config
+    init_by_lua_block {
+        error("failed to init")
+    }
+--- config
+    location /t {
+        echo ok;
+    }
+--- must_die
+--- error_log
+failed to init
+--- error_log
+[error]

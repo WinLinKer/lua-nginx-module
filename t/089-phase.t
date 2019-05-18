@@ -7,9 +7,8 @@ use Test::Nginx::Socket::Lua;
 log_level('warn');
 
 repeat_each(2);
-#repeat_each(1);
 
-plan tests => repeat_each() * (blocks() * 2);
+plan tests => repeat_each() * (blocks() * 2 + 1);
 
 #no_diff();
 #no_long_string();
@@ -160,3 +159,20 @@ GET /lua
 --- error_log
 current phase: timer
 
+
+
+=== TEST 10: get_phase in init_worker_by_lua
+--- http_config
+    init_worker_by_lua 'phase = ngx.get_phase()';
+--- config
+    location /lua {
+        content_by_lua '
+            ngx.say(phase)
+        ';
+    }
+--- request
+GET /lua
+--- response_body
+init_worker
+--- no_error_log
+[error]

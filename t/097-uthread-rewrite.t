@@ -1,6 +1,5 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 use t::StapThread;
 
@@ -24,7 +23,7 @@ __DATA__
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.req.set_uri("/foo", true)
             end
 
@@ -59,7 +58,7 @@ i am foo
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.req.set_uri("/foo", true)
             end
@@ -94,7 +93,7 @@ i am foo
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.req.set_uri("/foo", true)
             end
@@ -159,9 +158,9 @@ add timer 100
 add timer 1000
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua sleep cleanup
 delete timer 1000
-delete thread 2
 delete thread 1
 free request
 
@@ -176,12 +175,12 @@ hello foo
 --- config
     location /lua {
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.req.set_uri("/foo", true)
             end
 
-            function g()
+            local function g()
                 ngx.sleep(1)
             end
 
@@ -249,9 +248,9 @@ terminate 1: ok
 delete thread 1
 expire timer 100
 terminate 2: ok
+delete thread 2
 lua sleep cleanup
 delete timer 1000
-delete thread 2
 delete thread 3
 free request
 
@@ -259,6 +258,7 @@ free request
 hello foo
 --- no_error_log
 [error]
+--- wait: 0.1
 
 
 
@@ -267,7 +267,7 @@ hello foo
     location /lua {
         client_body_timeout 12000ms;
         rewrite_by_lua '
-            function f()
+            local function f()
                 ngx.sleep(0.1)
                 ngx.req.set_uri("/foo", true)
             end
@@ -277,7 +277,6 @@ hello foo
             ngx.location.capture("/sleep")
             ngx.say("end")
         ';
-        content_by_lua return;
     }
 
     location = /sleep {
@@ -289,8 +288,6 @@ hello foo
     }
 --- request
 POST /lua
---- more_headers
-Content-Length: 1024
 --- stap2 eval: $::StapScript
 --- stap eval
 <<'_EOC_' . $::GCScript;
@@ -342,12 +339,9 @@ post subreq /sleep
 terminate 1: ok
 delete thread 2
 delete thread 1
-terminate 3: ok
-delete thread 3
 free request
 
 --- response_body
 end
 --- error_log
 attempt to abort with pending subrequests
-

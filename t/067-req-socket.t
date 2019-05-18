@@ -1,11 +1,10 @@
 # vim:set ft= ts=4 sw=4 et fdm=marker:
 
-use lib 'lib';
 use Test::Nginx::Socket::Lua;
 
 repeat_each(2);
 
-plan tests => repeat_each() * (blocks() * 3 + 8);
+plan tests => repeat_each() * (blocks() * 3 + 9);
 
 our $HtmlDir = html_dir;
 
@@ -321,7 +320,7 @@ found the end of the stream
 
 === TEST 4: attempt to use the req socket across request boundary
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
     location /t {
         content_by_lua '
@@ -370,7 +369,7 @@ hello world
 === TEST 5: receive until on request_body - receiveuntil(1) on the last byte of the body
 See https://groups.google.com/group/openresty/browse_thread/thread/43cf01da3c681aba for details
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
     location /t {
         content_by_lua '
@@ -432,7 +431,7 @@ done
 
 === TEST 6: pipelined POST requests
 --- http_config eval
-    "lua_package_path '$::HtmlDir/?.lua;./?.lua';"
+    "lua_package_path '$::HtmlDir/?.lua;./?.lua;;';"
 --- config
     location /t {
         content_by_lua '
@@ -1065,3 +1064,35 @@ received: received: hello world
 --- error_log
 lua tcp socket read timed out
 
+
+
+=== TEST 17: req socket GC'd
+--- config
+    location /t {
+        content_by_lua '
+            do
+                local sock, err = ngx.req.socket()
+                if sock then
+                    ngx.say("got the request socket")
+                else
+                    ngx.say("failed to get the request socket: ", err)
+                end
+            end
+            collectgarbage()
+            ngx.log(ngx.WARN, "GC cycle done")
+
+            ngx.say("done")
+        ';
+    }
+--- request
+POST /t
+hello world
+--- response_body
+got the request socket
+done
+--- no_error_log
+[error]
+--- grep_error_log eval: qr/lua finalize socket|GC cycle done/
+--- grep_error_log_out
+lua finalize socket
+GC cycle done
